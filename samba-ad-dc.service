@@ -1,0 +1,13 @@
+[Unit]
+Description=Samba Active Directory Domain Controller Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c '/usr/bin/mkdir -p /srv/samba-dc/var/log; /usr/local/bin/samba-start 2>&1 | /usr/bin/tee -a /srv/samba-dc/var/log/samba.startup'
+RemainAfterExit=true
+#ExecStop=/usr/local/bin/samba-stop
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

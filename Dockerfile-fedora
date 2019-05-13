@@ -1,0 +1,59 @@
+FROM fedora:29
+
+LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
+
+# bind - named
+# bind-utils - host
+# tdb-tools - tdbbackup
+# cifs-utils - mount.cifs
+# hostname - hostname
+# wget - wget
+# iproute - ip
+# iputils - ping
+# net-tools - ifconfig
+# nmap - nmap
+# findutils - find
+# procps-ng - ps
+
+RUN dnf -y upgrade \
+ && dnf -y install --nodocs \
+        samba-dc \
+        krb5-workstation \
+        bind \
+        bind-utils \
+        tdb-tools \
+        cifs-utils \
+        hostname \
+        wget \
+        samba-dc-bind-dlz \
+        samba-client \
+        samba-winbind \
+        krb5-auth-dialog \
+        krb5-pkinit \
+        iproute \
+        iputils \
+        net-tools \
+        nmap \
+        findutils \
+        procps-ng \
+ && dnf -y clean all
+
+RUN wget https://www.internic.net/zones/named.cache.md5 \
+ && wget https://www.internic.net/zones/named.cache \
+ && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
+ && mkdir -p /etc/default/named \
+ && mv named.cache* /etc/default/named/ \
+ && true
+
+VOLUME /srv/samba-dc
+
+COPY samba-ad-dc.service /usr/lib/systemd/system/
+
+RUN systemctl enable samba-ad-dc.service
+
+COPY templates/* /etc/default/named/
+
+COPY bin/. /usr/local/bin/
+
+CMD [ "/sbin/init" ]
+

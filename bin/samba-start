@@ -1,0 +1,324 @@
+#!/bin/sh
+
+# samba-dc.sh - Provision and/or start samba domain controller.
+
+set -e
+
+# TODO Make easier to migrate existing standalone server (e.g. WINC) to docker.
+# TODO Check different sub-nets for dc's (e.g. multiple availability zones).
+# DONE TODO Think about rsyslogd.  Seems only relevant to Alpine, which doesn't work anyway.
+# DONE - Get rid of? Yes
+# DONE TODO Think about using systemd (Debian and Fedora).
+#  - One thing is clear if using systemd, a samba-ad-dc unit would be required to orchestrate the dns and samba startup.
+# DONE TODO Need to fix persistent /etc/ssh
+# DONE TODO Need to create admin account and link /home/admin & /root
+# DONE TODO Figure out how to get env vars with systemd.
+
+# Note: This is also used by samba provisioning.
+fixup_smb_config() {
+  if [ "$BACKEND" = "BIND9_DLZ" ]; then
+    # BIND9_DLZ, disable samba dns service.
+    sed -i \
+      -e "s:, dns$::" \
+      -e "s:[^#]dns forwarder:\t#dns forwarder:" \
+      /etc/samba/smb.conf
+  else
+    # SAMBA_INTERNAL, enable samba dns service.
+    sed -i \
+      -e "s:dnsupdate$:dnsupdate, dns:" \
+      -e "s:#dns forwarder:dns forwarder:" \
+      /etc/samba/smb.conf
+    # samba_upgradedns deletes the dns user when changing to SAMBA_INTERNAL and creates a
+    # new user when upgrading to BIND9_DLZ.  So, delete obsolete keytab if upgrading to SAMBA_INTERNAL.
+    # A new one will be created if the domain is upgraded later back to BIND9_DLZ.
+    if [ -e $PRIVATE_DIR/dns.keytab ]; then
+      echo "Deleting obsolete dns.keytab file."
+      rm $PRIVATE_DIR/dns.keytab
+    fi
+  fi
+}
+
+link_persistent_directories() {
+
+  # The persistent samba directories will be created on the first run.
+  if [ ! -d /srv/samba-dc/etc/samba ]; then
+    echo "Creating persistent samba directories."
+    mkdir -p /srv/samba-dc/etc/samba
+    cp -a /etc/samba/. /srv/samba-dc/etc/samba/
+    mkdir -p /srv/samba-dc/var/log/samba
+    mkdir -p /srv/samba-dc/var/lib/samba
+    cp -a $STATEDIR/. /srv/samba-dc/var/lib/samba/
+    mkdir -p /srv/samba-dc/var/cache/samba
+  fi
+
+  # In a container these links are ephemeral and will be recreated on each run.
+  if [ ! -L "/etc/samba" ]; then
+    echo "Creating persistent samba directory links."
+    mv /etc/samba /etc/samba-bak
+    ln -s /srv/samba-dc/etc/samba       /etc/samba
+    mv ${LOGFILEBASE} ${LOGFILEBASE}-bak
+    ln -s /srv/samba-dc/var/log/samba   ${LOGFILEBASE}
+    mv ${STATEDIR} ${STATEDIR}-bak
+    ln -s /srv/samba-dc/var/lib/samba  ${STATEDIR}
+    if [ "${CACHEDIR}" != "${STATEDIR}" ]; then
+      mv ${CACHEDIR} ${CACHEDIR}-bak
+      ln -s /srv/samba-dc/var/cache/samba ${CACHEDIR}
+    fi
+  fi
+
+  # Determine bind directories to link.
+  ETCNAMED="/etc/named"
+  VARNAMED="/var/named"
+  [ -d /etc/bind ] && ETCNAMED="/etc/bind"
+  [ -d /var/bind ] && VARNAMED="/var/bind"
+  # Debian uses /var/lib/bind
+  [ -d /var/lib/bind ] && VARNAMED="/var/lib/bind"
+
+  # The persistent bind directories will be created on the first run.
+  if [ ! -d /srv/samba-dc/etc/named ]; then
+    echo "Creating persistent bind directories."
+    mkdir -p /srv/samba-dc/etc/named
+    cp -a $ETCNAMED/. /srv/samba-dc/etc/named/
+    mkdir -p /srv/samba-dc/var/named
+    cp -a $VARNAMED/. /srv/samba-dc/var/named/
+  fi
+
+  # In a container these links are ephemeral and will be recreated on each run.
+  if [ ! -L "${ETCNAMED}" ]; then
+    echo "Creating persistent bind directory links."
+    mv ${ETCNAMED} ${ETCNAMED}-bak
+    ln -s /srv/samba-dc/etc/named   ${ETCNAMED}
+    mv ${VARNAMED} ${VARNAMED}-bak
+    # Note: always link /var/named to persistent directory (It is hard-coded in named.conf).
+    ln -s /srv/samba-dc/var/named   /var/named
+    # This eliminates spurious bind error message.
+    mkdir -p /etc/rc.d/init.d
+    touch /etc/rc.d/init.d/functions
+    ln -sf /srv/samba-dc/etc/named/rndc.key /etc/rndc.key
+  fi
+
+  # If using systemd link /etc/ssh (for persistent host keys) and persistent home directory.
+  ##if [ -n "${SYSTEMD}" ]; then
+  if [ "this" = "is to be deleted" ]; then
+    # Stop sshd.
+    systemctl stop sshd
+    # The persistent ssh directory will be created on the first run.
+    if [ ! -d /srv/samba-dc/etc/ssh ]; then
+      echo "Creating persistent ssh directory."
+      mkdir -p /srv/samba-dc/etc/ssh
+      cp -a /etc/ssh/. /srv/samba-dc/etc/ssh
+    fi
+    # In a container these links are ephemeral and will be recreated on each run.
+    if [ ! -L "/etc/ssh" ]; then
+      echo "Creating persistent ssh directory links."
+      mv /etc/ssh /etc/ssh-bak
+      ln -s /srv/samba-dc/etc/ssh   /etc/ssh
+    fi
+    # Create persistent home directory on the first run.
+    if [ ! -d /srv/samba-dc/home ]; then
+      mkdir -p /srv/samba-dc/home
+      cp -a /home/. /srv/samba-dc/home
+    fi
+    # link persistent home directory.
+    [ -d /home ] && mv /home  /home-bak
+    ln -s /srv/samba-dc/home  /home
+    # Restart sshd.
+    systemctl start sshd || true
+  fi
+}
+
+start_bind() {
+
+  # See: https://wiki.samba.org/index.php/Setting_up_a_BIND_DNS_Server
+
+  if [ "1" = "2" ]; then
+    # TODO This will not work native...
+    # Make the syslog messages available outside the container.
+    touch /srv/samba-dc/var/log/messages
+    rm -f /var/log/messages
+    ln -s /srv/samba-dc/var/log/messages /var/log/messages
+
+    echo "Starting rsyslog."
+    # When named starts, its startup messages go to syslog.
+    # If named fails, to identify problems, you must have these messages.
+    rsyslogd
+  fi
+
+  echo "Starting named."
+
+  chown root:$NAMED_GROUP /etc/krb5.conf
+
+  # TODO This appears to be obsolete, at least for ubuntu, and probably should be removed.
+  if [ ! -e $PRIVATE_DIR/dns.keytab ]; then
+    # If there is no dns.keytab export it now.
+    echo "Exporting dns.keytab for named."
+    samba-tool domain exportkeytab --principal=dns-${HOST_NAME}@$REALM $PRIVATE_DIR/dns.keytab
+    chmod 640 $PRIVATE_DIR/dns.keytab
+    chown root:$NAMED_GROUP $PRIVATE_DIR/dns.keytab
+  fi
+
+  # This is needed for Debian/Ubuntu.
+  mkdir -p /run/named
+  chown ${NAMED_USER}:${NAMED_GROUP} /run/named
+
+  # TODO This is a special alpine test.
+  sed -i 's:# database.*bind9_11.so";:database "dlopen /usr/lib/samba/bind9/dlz_bind9_11.so";:' \
+    $BINDDNS_DIR/named.conf
+
+  echo "named-checkconf $ETCNAMED/named.conf"
+  named-checkconf $ETCNAMED/named.conf
+
+  [ -n "$BIND_LOG_LEVEL" ] && LOG_OPTIONS="-d $BIND_LOG_LEVEL"
+
+  # Start bind.
+  if [ -n "$SYSTEMD" ]; then
+    # TODO Fedora specific + cleanup.
+    if [ -e /etc/sysconfig/named ]; then
+      echo "Changing named service configuration file to '/etc/named/named.conf'."
+      sed -i 's:# NAMEDCONF=.*:NAMEDCONF=/etc/named/named.conf:' /etc/sysconfig/named
+      # Fix Fedora named option.  This prevents "replay errors" and is critical for nsupdate to work.
+      # See: https://www.spinics.net/lists/samba/msg147046.html
+      echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
+    fi
+    systemctl start named
+  else
+    export KRB5RCACHETYPE="none"
+    echo "named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS"
+    if ! named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS ; then
+      echo "Named startup failed with error code: $?"
+    fi
+  fi
+
+  # Wait for named to fully start.
+  sleep 3s
+
+  # Verify named is responding to queries.
+  if ! host -t A localhost 127.0.0.1 ; then
+    echo "WARNING: named is not responding."
+  fi
+}
+
+############################################################ Section: Main
+
+echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
+
+# Determine if we are running under init system (systemd or openRC).
+if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
+  echo "Running under systemd or openRC."
+  SYSTEMD="true"
+fi
+
+. samba-set-vars
+set_samba_vars
+
+link_persistent_directories
+
+# Set the local timezone.
+if [ -n "$TIMEZONE" ]; then
+  echo "Setting timezone to ${TIMEZONE}."
+  ln -fs /usr/share/zoneinfo/$TIMEZONE /etc/localtime || true
+fi
+
+# The following are the configuration steps as described in
+# https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller
+
+# Step 1: Preparing the Installation
+
+if [ ! -e /srv/samba-dc/etc/hosts ]; then
+  # Create a hosts file on the persistent volume (First run only).
+  cat > /srv/samba-dc/etc/hosts <<-__EOF__
+	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+	::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
+	__EOF__
+fi
+
+# The /etc/hosts file is ephemeral, so copy it from the persistent volume.
+# Note: Docker does not allow deleting the /etc/hosts, so write over it instead.
+cat /srv/samba-dc/etc/hosts >/etc/hosts
+
+# Step 2: Installing Samba --- Not needed, already installed.
+
+# Step 3: Provisioning Samba AD in Non-Interactive Mode (First run only).
+if [ ! -f $PRIVATE_DIR/secrets.tdb ]; then
+  . samba-provisioning
+  save_backend="$BACKEND"
+  if [ "$ROLE" != "master" ]; then
+    if [ "$BACKEND" = "BIND9_DLZ" ]; then
+      # Domain join with BIND9_DLZ incorrectly creates the dns-hostname account.
+      echo "Forcing domain join to use SAMBA_INTERNAL backend."
+      echo "Backend will be upgraded to BIND9_DLZ after the join."
+      ## TODO Debian Samba is 4.5.16-Debian
+      ## Ubuntu 18.04 is 4.7.6-Ubuntu (Note: slave still unable to ns delete nstest ptr, success on restart).
+      BACKEND="SAMBA_INTERNAL"
+    fi
+  fi
+  provision
+  BACKEND="$save_backend"
+  # Create a bind config even if using SAMBA_INTERNAL backend.
+  # This will allow switching to BIND9_DLZ at a later time.
+  setup_bind_config
+  PROVISIONED="true"
+fi
+
+# Step 7 (Out of order from docs): Configuring Kerberos
+# This needs to be done before doing a samba_upgradedns.
+
+cp -a $PRIVATE_DIR/krb5.conf /etc/
+chmod 0644 /etc/krb5.conf
+
+# Step 4: Setting up the AD DNS back end
+
+# If the dns backend has changed, a samba dns upgrade is required.
+if [ "$BACKEND" != "$(cat /etc/samba/backend  || true)" ]; then
+  echo "DNS backend changed to: ${BACKEND}."
+  fixup_smb_config
+  samba_upgradedns --dns-backend=$BACKEND
+  echo "$BACKEND" >/etc/samba/backend
+fi
+
+# If using bind backend, start bind.
+[ "$BACKEND" = "BIND9_DLZ" ] && start_bind
+
+# Step 5: Configuring the DNS Resolver
+
+if [ ! -e /srv/samba-dc/etc/resolv.conf ]; then
+  # Create a resolv.conf file on the persistent volume (First run only).
+  cat > /srv/samba-dc/etc/resolv.conf <<-__EOF__
+	search $DOMAIN
+	nameserver ${HOST_IP}
+	__EOF__
+fi
+
+# The /etc/resolv.conf file in a container is ephemeral, so copy it from the persistent volume.
+# Note: Docker does not allow deleting the /etc/resolv.conf so it must be overwritten instead.
+cat /srv/samba-dc/etc/resolv.conf >/etc/resolv.conf
+
+# Step 8: Testing your Samba AD DC
+
+echo "Starting samba."
+if [ -n "$SYSTEMD" ]; then
+  systemctl start samba
+else
+  samba
+fi
+echo "Samba started."
+
+# Wait for samba to start.
+sleep 5s
+
+[ "$PROVISIONED" = "true" ] && post_provisioning
+
+if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
+  . samba-tests
+  test_samba
+fi
+
+echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
+
+if [ -z "$SYSTEMD" ]; then
+  sleep 360000s
+fi
+
+exit 0
+

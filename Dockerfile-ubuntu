@@ -1,0 +1,64 @@
+FROM ubuntu:18.04
+
+LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
+
+# bind9 - named
+# bind9utils - host 
+# tdb-tools - tdbbackup
+# cifs-utils - mount.cifs
+# wget - wget
+# iproute2 - ip
+# dnsutils - nsupdate
+# vim - vi
+# net-tools - ifconfig, hostname
+# iputils-ping - ping
+# tzdata - time zones
+# rsyslog - rsyslog
+# nmap - nmap
+
+RUN apt-get -y update \
+ && DEBIAN_FRONTEND=noninteractive apt-get -y install \
+        samba \
+        attr \
+        winbind \
+        libpam-winbind \
+        libnss-winbind \
+        libpam-krb5 \
+        krb5-config \
+        krb5-user
+
+RUN  DEBIAN_FRONTEND=noninteractive apt-get -y install \
+       bind9 \
+       bind9utils \
+       tdb-tools \
+       cifs-utils \
+       wget \
+       iproute2 \
+       dnsutils \
+       vim \
+       net-tools \
+       iputils-ping \
+       tzdata \
+       rsyslog \
+       nmap \
+       systemd
+
+RUN wget https://www.internic.net/zones/named.cache.md5 \
+ && wget https://www.internic.net/zones/named.cache \
+ && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
+ && mkdir -p /etc/default/named \
+ && mv named.cache* /etc/default/named/ \
+ && true
+
+VOLUME /srv/samba-dc
+
+COPY samba-ad-dc.service /usr/lib/systemd/system/
+
+#RUN systemctl enable samba-ad-dc.service
+
+COPY templates/* /etc/default/named/
+
+COPY bin/. /usr/local/bin/
+
+CMD [ "/usr/local/bin/samba-run" ]
+

@@ -1,0 +1,44 @@
+FROM alpine:latest
+
+LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
+
+# bind - named
+# bind-tools - host 
+# tdb - tdbbackup
+# cifs-utils - mount.cifs
+# net-tools - ifconfig, hostname
+# iproute2 - ip
+# tzdata - time zones
+
+RUN apk add --update  --no-cache \
+        samba-dc \
+        krb5 \
+        bind \
+        bind-tools \
+        net-tools \
+        tdb \
+        cifs-utils \
+        iproute2 \
+        openssh-client \
+        openrc \
+        tzdata
+
+RUN wget https://www.internic.net/zones/named.cache.md5 \
+ && wget https://www.internic.net/zones/named.cache \
+ && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
+ && mkdir -p /etc/default/named \
+ && mv named.cache* /etc/default/named/ \
+ && true
+
+VOLUME /srv/samba-dc
+
+COPY samba-ad-dc.service /usr/lib/systemd/system/
+
+##RUN systemctl enable samba-ad-dc.service
+
+COPY templates/* /etc/default/named/
+
+COPY bin/. /usr/local/bin/
+
+CMD [ "/sbin/init" ]
+

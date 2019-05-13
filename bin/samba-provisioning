@@ -1,0 +1,383 @@
+#!/bin/sh
+
+create_samba_config() {
+
+  local cfg="/etc/samba/smb.conf"
+
+cat >$cfg <<__EOF__
+
+# Global parameters
+[global]
+	bind interfaces only = $BIND_INTERFACES_ONLY
+	dns forwarder = $DNS_FORWARDERS
+	interfaces = $INTERFACES
+	netbios name = $(echo $HOST_NAME | tr [a-z] [A-Z])
+	realm = $REALM
+	server role = active directory domain controller
+	server services = s3fs, rpc, nbt, wrepl, ldap, cldap, kdc, drepl, winbindd, ntp_signd, kcc, dnsupdate
+	workgroup = $WORKGROUP
+	idmap_ldb:use rfc2307 = yes
+
+	# Settings that are not samba-tool defaults
+
+	log level = $LOG_LEVEL
+
+	tls enabled  = yes
+	tls cafile   = tls/ca.pem
+	tls keyfile  = tls/key.pem
+	tls certfile = tls/cert.pem
+	tls verify peer = ca_and_name
+
+	allow dns updates = nonsecure
+
+	add machine script = /usr/sbin/adduser -D -H -G users -s /bin/false %u
+
+	#? ldap server require strong auth = no
+	#? client ldap sasl wrapping = plain
+
+	#template shell = /bin/bash
+	#winbind refresh tickets = Yes
+	#winbind use default domain = $WINBIND_USE_DEFAULT_DOMAIN
+	#winbind offline logon = false
+	#winbind nss info = rfc2307
+
+	#winbind enum users = yes
+	#winbind enum groups = yes
+
+	#domain logons = $DOMAIN_LOGONS
+	#domain master = $DOMAIN_MASTER
+
+	# Stop the syslog being spammed by the lack of a CUPS server.
+	printing = CUPS
+	printcap name = /dev/null
+
+[netlogon]
+	path = $STATEDIR/sysvol/$DOMAIN/scripts
+	read only = No
+
+[sysvol]
+	path = $STATEDIR/sysvol
+	read only = No
+
+__EOF__
+
+  fixup_smb_config
+
+}
+
+############################################################ Section: Provision
+
+provision() {
+
+  # TODO Update or delete this...
+  # Here's what I want:
+  # docker environment vars for things common to provision and join modes (i.e. common docker-compose or kubernetes file for master/slave(s)).
+  # /etc/samba/samba-vars for action: master (provision) / slave (join).
+  # Ultimately want samba to run in podman local, docker plain, docker-compose, docker swarm, docker stack or kubernetes, i.e. one master + slave(s).
+  #   - This will require local /srv/samba-dc/etc/samba/samba-vars.
+  #   - OR, $(hostname -s)
+  # Want it to be exceedingly easy to setup.
+
+  # Provision only happens once, ever.
+  # Would you rather have a samba-dc-provision and a samba-dc or just a more complicated samba-dc. samba-dc.
+  # Use docker environment? yes.
+  # Use docker secret for password? Avoids exposure in makefile/compose/kubernetes files. Probably, yes.  NO.
+  # Kubernetes/Swarm probably too complex for samba-dc.  Separate container vms probably good enough.
+
+  # Remove default config files.
+  rm -f /etc/samba/smb.conf /etc/krb5.conf
+
+  # Provision (master) or join (slave).
+  USE_RFC2307=${USE_RFC2307:-yes}
+  if [ "$ROLE" = "master" ]; then
+
+    [ "${USE_RFC2307}" = "yes" ] && rfc2307="--use-rfc2307"
+
+    echo "Provisioning domain '$DOMAIN'."
+
+    #  --host-name=$HOST_NAME \
+    samba-tool domain provision \
+      --server-role=dc \
+      --realm=$REALM \
+      --domain=$WORKGROUP \
+      --adminpass=$PASSWORD \
+      --dns-backend=$BACKEND \
+      --option="bind interfaces only=${BIND_INTERFACES_ONLY:-no}" \
+      --option="interfaces=${INTERFACES:-lo eth0}" \
+      ${rfc2307}
+
+  else
+
+    # Slave join delay to allow time for master to finish provisioning.
+    if [ -n "$SLAVE_JOIN_DELAY" ]; then
+      echo "Sleeping for $SLAVE_JOIN_DELAY seconds waiting for master to finish provisioning."
+      sleep $SLAVE_JOIN_DELAY
+    fi
+
+    # Create a temporary /etc/resolv.conf that points to the master for joining.
+    cat > /etc/resolv.conf <<-__EOF__
+	search $DOMAIN
+	nameserver $MASTER_IP
+	__EOF__
+
+    # Create a krb5.conf for joining.
+    cat > /etc/krb5.conf <<-__EOF__
+	[libdefaults]
+	        default_realm = $REALM
+	        dns_lookup_realm = false
+	        dns_lookup_kdc = true
+	__EOF__
+
+    # Copy the idmap from the master.  This will be needed once the join is complete.
+    echo "Mounting sysvol //$DOMAIN/sysvol."
+    mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt  || true
+    if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
+      echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
+    else
+      cp -a /mnt/provision/idmap.ldb.bak /tmp
+    fi
+    umount /mnt || true
+
+    # Get a kerberos ticket.  This *IS* necessary for a successful join.
+    echo "$PASSWORD" | kinit Administrator
+    if [ "$?" != "0" ]; then
+      echo "Cannot authenticate to master domain controller."
+      exit 1
+    fi
+
+    echo "Joining domain '$DOMAIN'."
+
+    samba-tool domain join $REALM DC \
+      -UAdministrator --password=$PASSWORD \
+      --dns-backend=$BACKEND \
+      --option="bind interfaces only=${BIND_INTERFACES_ONLY:-no}" \
+      --option="interfaces=${INTERFACES:-lo eth0}" \
+      --option="idmap_ldb:use rfc2307 = ${USE_RFC2307}"
+  fi
+  if [ "$?" != "0" ]; then
+    echo "Provisioning failed!"
+    exit 1
+  else
+    echo "Provision/Join completed successfully."
+  fi
+
+  # If not master, copy the idmap saved above.
+  if [ -e /tmp/idmap.ldb.bak ]; then
+    echo "Synchronizing idmap with master."
+    cp -a /tmp/idmap.ldb.bak $PRIVATE_DIR/idmap.ldb
+  fi
+
+  # Backup the samba-tool generated smb.conf file.
+  mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
+
+  # Create default samba config.
+  create_samba_config
+
+  # TODO Not sure about this. Create a smbusers file.
+  ##########################################################################echo "root = administrator" > /etc/samba/smbusers
+
+  # Save the backend in use.  It can be changed later.
+  echo "$BACKEND" >/etc/samba/backend
+}
+
+post_provisioning() {
+
+  # Step 6 (Out of order from docs): Create a reverse zone
+
+  # Create a reverse zone for this server, if needed.
+  subnet="$(ip addr | grep ${HOST_IP} | cut -d '/' -f2 | cut -d ' ' -f1)"
+  echo "$HOST_IP is in a /$subnet subnet."
+  revzone="$(echo ${HOST_IP} | awk -F '.' '{print $3 "." $2 "." $1}')"
+  node="$(echo ${HOST_IP} | awk -F '.' '{print $4}')"
+  if [ -z "$(host -t SOA ${revzone}.in-addr.arpa 2>/dev/null | grep -i 'has SOA')" ]; then
+    echo "Adding reverse dns zone ${revzone}.in-addr.arpa."
+    samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN ${revzone}.in-addr.arpa -U Administrator --password=$PASSWORD 2>&1
+  else
+    echo "Reverse zone ${revzone}.in-addr.arpa exists."
+  fi
+
+  ############################################################ Section: Main: Additional
+
+  # Step 9: Other useful configuration not specified in docs.
+
+  # samba_dnsupdate --verbose --all-names --fail-immediately
+  # This works on the fedora master, but only after a reboot.
+
+  # samba-tool fsmo show
+  # samba-tool drs showrepl
+
+  # Add IPv4 dns record for this host, if none exists.
+  if [ -z "$(host -t A $HOST_NAME | grep -i 'has address')" ]; then
+    echo "Adding dns record for $HOST_NAME in $DOMAIN type A ${HOST_IP}"  
+    samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  A  $HOST_IP -U Administrator --password=$PASSWORD 2>&1
+  else
+    echo "IPv4 dns record for $HOST_NAME exists."
+  fi
+
+  # Add IPv6 dns record for this host, if none exists.
+  if [ -z "$(host -t AAAA $HOST_NAME | grep -i 'has IPv6 address')" ]; then
+    HOST_IP6="$(ip addr | grep inet6 | grep global | awk '{print $2}' | cut -d '/' -f1)"
+    if [ -n "$HOST_IP6" ]; then
+      echo "Adding dns record for $HOST_NAME in $DOMAIN type AAAA ${HOST_IP6}"
+      samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  AAAA  $HOST_IP6 -U Administrator --password=$PASSWORD 2>&1
+    else
+      echo "Not adding IPv6 dns record: No IPv6 address detected."
+    fi
+  else
+    echo "IPv6 dns record for $HOST_NAME exists."
+  fi
+
+  # Create a reverse pointer record for this server, if none exists.
+  if ! host -t PTR $HOST_IP 2>&1 >/dev/null ; then
+    echo "Adding reverse pointer record for $node in ${revzone}.in-addr.arpa type PTR ${HOST_NAME}.$DOMAIN"
+    samba-tool dns add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN -U Administrator --password=$PASSWORD 2>&1
+  else
+    echo "Reverse pointer for $HOST_IP exists."
+  fi
+
+  # TODO Figure out how to do this correctly for any network.
+  # Adding a IPv6 record looks like: samba-tool dns add <server>     <zone>                                   <name>                          <type> <data>
+  # Adding a IPv6 record looks like: samba-tool dns add 192.168.33.6 d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa b.f.4.b.f.f.1.c.5.8.5.6.b.a.5.0 PTR    dc1.ad.clone1.com
+  ##echo "samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa -U Administrator --password=****"
+  ##samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa -U Administrator --password=$PASSWORD 2>&1
+
+  ############################################################ Section: Main: Post Provisioning
+
+  # Executed after the controller has been provisioned and started on the first run.
+
+  if [ "$ROLE" = "master" ]; then
+
+    # Turn-off password expiration for Administrator.
+    echo "samba-tool user setexpiry Administrator --noexpiry"
+    samba-tool user setexpiry Administrator --noexpiry
+
+    # Turn-off password complexity.
+    echo "samba-tool domain passwordsettings set --complexity=off"
+    samba-tool domain passwordsettings set --complexity=off
+
+    # Remove password expiration.
+    echo "samba-tool domain passwordsettings set --min-pwd-age=0"
+    samba-tool domain passwordsettings set --min-pwd-age=0
+    echo "samba-tool domain passwordsettings set --max-pwd-age=0"
+    samba-tool domain passwordsettings set --max-pwd-age=0
+    echo "pdbedit -P "maximum password age" -C -1"
+    pdbedit -P "maximum password age" -C -1
+
+    # Allow password reuse.
+    echo "samba-tool domain passwordsettings set --history-length=0"
+    samba-tool domain passwordsettings set --history-length=0
+
+    # Backup the idmap to the sysvol share, so slave(s) can load it.
+    # see: https://wiki.samba.org/index.php/Joining_a_Samba_DC_to_an_Existing_Active_Directory#Built-in_User_.26_Group_ID_Mappings
+    tdbbackup -s .bak $PRIVATE_DIR/idmap.ldb
+    # Save the idmap so that slave controller(s) can access it.
+    mkdir -p $STATEDIR/sysvol/provision
+    cp -a $PRIVATE_DIR/idmap.ldb.bak $STATEDIR/sysvol/provision/
+
+    # Create an unprivileged user for dhcp updates with a random password.
+    samba-tool user create dhcpduser --description="Unprivileged user for TSIG-GSSAPI DNS updates via ISC DHCP server" --random-password
+
+    # Set the the dhcp users password to never expire and add it to the DnsAdmins group.
+    samba-tool user setexpiry dhcpduser --noexpiry
+    samba-tool group addmembers DnsAdmins dhcpduser
+  else
+
+    # In order for dynamic dns updates to work after joining a slave, the master and slaves
+    # must be fully synchronized. This will happen normally over time, but forcing it here
+    # allows the dynamic update tests to complete successfully.
+    echo "Manually replicating directory partitions."
+    part="$(echo ${DOMAIN} | awk -F '.' '{print "dc=" $1 ",dc=" $2 ",dc=" $3}')"
+    mast="$(host $MASTER_IP $MASTER_IP | grep "name pointer" | sed 's/^.*pointer //' | cut -d '.' -f 1)"
+    if [ -n "$part" -a -n "$mast" ]; then
+      echo "samba-tool drs replicate $HOST_NAME $mast $part"
+      samba-tool drs replicate $HOST_NAME $mast $part
+      echo "samba-tool drs replicate $mast $HOST_NAME $part"
+      samba-tool drs replicate $mast $HOST_NAME $part
+    fi
+
+    # If slave show replication status
+    samba-tool drs showrepl
+  fi
+
+  # Alwyas run tests after initial provisioning.
+  RUN_TESTS="true"
+
+  # Export the dhcpd user keytab.
+  samba-tool domain exportkeytab --principal=dhcpduser@$REALM $STATEDIR/dhcpduser.keytab
+
+  # Change permissions on the dhcpduser keytab.
+  chmod 600 $STATEDIR/dhcpduser.keytab
+
+  [ "$BACKEND" != "BIND9_DLZ" ] && run_named=":"
+  if [ "$BACKEND" = "BIND9_DLZ" ]; then
+    # For some reason nsupdates do not work without a restart.
+    if [ -n "$SYSTEMD" ]; then
+      echo "Restarting samba."
+      systemctl stop samba
+      $run_named systemctl stop named
+      sleep 2s
+      $run_named       systemctl start named
+      systemctl start samba
+    else
+      pidfile="/run/samba/samba.pid"
+      [ -e /run/samba.pid ] && pidfile="/run/samba.pid"
+      kill "$(cat $pidfile)"
+      $run_named       kill "$(cat /run/named/named.pid 2>/dev/null || true)"
+      sleep 2s
+      $run_named       start_bind
+      samba
+    fi
+    # Wait for samba and bind to come up.
+    sleep 3s
+  fi
+}
+
+############################################################ Section: Setup Bind Default Config
+
+setup_bind_config() {
+
+  if [ ! -e /srv/samba-dc/etc/named/rndc.key ]; then
+    echo "Generating rndc.key:"
+    rm -f /etc/rndc.key
+    if /usr/sbin/rndc-confgen -a -A hmac-sha256 -r /dev/urandom 2>&1 ; then
+      # Alpine and Debian use /etc/bind/rndc.key
+      # Fedora uses /etc/rndc.key
+      [ -e /etc/bind/rndc.key ] && mv /etc/bind/rndc.key /etc/rndc.key
+      chmod 640 /etc/rndc.key
+      chown -R root:$NAMED_GROUP /etc/rndc.key
+      cp -a /etc/rndc.key /srv/samba-dc/etc/named/
+      echo "Successfully created rndc.key file."
+    else
+      echo "Failed to create rndc.key file."
+    fi
+  fi
+
+  mkdir -p /srv/samba-dc/var/named/log
+  mkdir -p /srv/samba-dc/var/named/master
+
+  cp -a /etc/default/named/*.zone              /srv/samba-dc/var/named/master/
+  cp -a /etc/default/named/named.conf.logging  /srv/samba-dc/var/named/
+  cp -a /etc/default/named/named.cache         /srv/samba-dc/var/named/named.root
+
+  SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
+  FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
+
+  sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \
+      -e "s:\$DNS_FORWARDERS:$FORWARDERS:" \
+      -e "s:\$BINDDNS_DIR:${BINDDNS_DIR}:" \
+  /etc/default/named/named.conf.tmpl > /srv/samba-dc/etc/named/named.conf
+
+  # Fix ownership for newly created files and directories.
+  chown -R        root:$NAMED_GROUP /srv/samba-dc/etc/named/
+  chown -R        root:$NAMED_GROUP /srv/samba-dc/var/named/
+  chown -R $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/log
+  chown -R $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/master
+  chown    $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/
+
+  # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
+  chown           root:$NAMED_GROUP ${BINDDNS_DIR}
+
+  # Fix permissions.
+  chmod 640 /srv/samba-dc/etc/named/named.conf
+  chmod 640 /srv/samba-dc/var/named/master/*.zone
+}

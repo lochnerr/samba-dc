@@ -1,0 +1,116 @@
+#!/bin/sh
+
+set_samba_vars() {
+
+  # Source samba vars from well-known locations.
+
+  [ -e /srv/samba-vars ]          && . /srv/samba-vars
+  [ -e /srv/samba-dc/samba-vars ] && . /srv/samba-dc/samba-vars
+
+  local fwd=""
+  for addr in $(grep ^nameserver /etc/resolv.conf | grep [0-9]*[.][0-9]*[.][0-9]*[.][0-9]* | cut -d ' ' -f 2) ; do
+    fwd="${fwd}$addr "
+  done
+  DNS_FORWARDERS="${fwd:-8.8.8.8 8.8.4.4}"
+
+  ALLOWED_SUBNETS="${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}"
+
+  HOST_NAME="${HOST_NAME:-$(hostname -s 2>/dev/null || true)}"
+
+  # Fix for alpine linux in container on fedora.
+  [ -z "$HOST_NAME" ] && HOST_NAME="$(echo $(hostname | cut -d '.' -f 1))"
+  DOMAIN="${DOMAIN:-$(hostname -d 2>/dev/null || true)}"
+  # Fix for alpine linux in container on fedora.
+  if [ -z "$DOMAIN" ]; then
+    tmp="$(hostname)"
+    DOMAIN="${tmp#*.}"
+  fi
+
+  # Host and Domain cannot be the same.
+  [ "$HOST_NAME" = "$DOMAIN" ] && DOMAIN="samba.internal"
+  [ -z "$DOMAIN" ] && DOMAIN="samba.internal"
+
+  REALM="${REALM:-$(echo $DOMAIN | tr 'a-z' 'A-Z')}"
+  WORKGROUP="${WORKGROUP:-$(echo $REALM | cut -d '.' -f 1)}"
+  HOST_IP="${HOST_IP:-$(ip route get 8.8.8.8 | awk -F'src ' 'NR==1{split($2,a," ");print a[1]}')}"
+
+  BIND_INTERFACES_ONLY="${BIND_INTERFACES_ONLY:-yes}"
+  INTERFACES="${INTERFACES:-lo eth0}"
+  USE_RFC2307=${USE_RFC2307:-yes}
+  BACKEND="$(echo ${BACKEND:-BIND9_DLZ} | tr 'a-z' 'A-Z')"
+  [ "$BACKEND" != "BIND9_DLZ" ] && BACKEND="SAMBA_INTERNAL"
+  LOG_LEVEL="${LOG_LEVEL:-1}"
+  PASSWORD="${PASSWORD:-Passw0rd}"
+  SLAVE_JOIN_DELAY="${SLAVE_JOIN_DELAY:-150}"
+
+  LOGFILEBASE="$(smbd -b | grep LOGFILEBASE | awk '{print $2}')"
+  CACHEDIR="$(smbd -b | grep CACHEDIR | awk '{print $2}')"
+  STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
+  PRIVATE_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
+  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
+  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
+  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR=$PRIVATE_DIR
+
+  # Determine the named user (Linux distros have different ones).
+  NAMED_USER="named"
+  [ -n "$(id bind 2>/dev/null)" ] && NAMED_USER="bind"
+  NAMED_GROUP="$(id $NAMED_USER -gn)"
+
+  cat <<-__EOF__
+	Samba Settings:
+
+	  SAMBA VERSION        = $(samba -V)
+	  DOMAIN               = $DOMAIN
+	  WORKGROUP            = $WORKGROUP
+	  REALM                = $REALM
+	  HOST NAME            = $HOST_NAME
+	  HOST ADDR            = $HOST_IP
+
+	  DNS BACKEND          = $BACKEND
+	  DNS FORWARDERS       = $DNS_FORWARDERS
+	  MASTER_IP            = $MASTER_IP
+	  TIMEZONE             = $TIMEZONE
+	  BIND_INTERFACES_ONLY = $BIND_INTERFACES_ONLY
+	  INTERFACES           = $INTERFACES
+	  LOG_LEVEL            = $LOG_LEVEL
+	  SLAVE_JOIN_DELAY     = $SLAVE_JOIN_DELAY
+
+	  LOGFILEBASE          = $LOGFILEBASE
+	  CACHEDIR             = $CACHEDIR
+	  STATEDIR             = $STATEDIR
+	  PRIVATE_DIR          = $PRIVATE_DIR
+
+	Bind Version:  $(named -v)
+	Bind User:     $NAMED_USER
+	Bind Group:    $NAMED_GROUP
+	__EOF__
+
+  if [ -n "$MASTER_IP" ]; then
+    if [ "$HOST_IP" = "$MASTER_IP" ]; then
+      ROLE="master"
+    else
+      ROLE="slave"
+    fi
+  else
+    echo "MASTER_IP variable not set, defaulting to master!"
+    MASTER_IP="$HOST_IP"
+    ROLE="master"
+  fi
+
+  echo "Samba DC Role: $ROLE"
+
+  if [ -e /etc/os-release ]; then
+    . /etc/os-release
+    echo "OS Variant: $PRETTY_NAME"
+    echo "ID: $ID"
+  elif [ -e /etc/fedora-release ]; then
+    echo "OS Variant: $(cat /etc/fedora-release)"
+  elif [ -e /etc/alpine-release ]; then
+    echo "OS Variant: Alpine release $(cat /etc/alpine-release)"
+  elif [ -e /etc/centos-release ]; then
+    echo "OS Variant: $(cat /etc/centos-release)"
+  else
+    echo "OS Variant: Unknown"
+  fi
+}
+
