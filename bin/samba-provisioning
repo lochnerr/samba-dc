@@ -128,12 +128,19 @@ provision() {
 	        dns_lookup_kdc = true
 	__EOF__
 
+    # For debugging.
+    echo "/etc/resolv.conf:"
+    cat /etc/resolv.conf
+    echo "/etc/krb5.conf:"
+    cat /etc/krb5.conf
+
     # Copy the idmap from the master.  This will be needed once the join is complete.
     echo "Mounting sysvol //$DOMAIN/sysvol."
     mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt  || true
     if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
       echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
     else
+      echo "//$DOMAIN/sysvol mounted successfully."
       cp -a /mnt/provision/idmap.ldb.bak /tmp
     fi
     umount /mnt || true
