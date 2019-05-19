@@ -14,6 +14,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
 # nmap - nmap
 # findutils - find
 # procps-ng - ps
+# traceroute - traceroute
 
 RUN dnf -y upgrade \
  && dnf -y install --nodocs \
@@ -36,14 +37,13 @@ RUN dnf -y upgrade \
         nmap \
         findutils \
         procps-ng \
- && dnf -y clean all
-
-RUN wget https://www.internic.net/zones/named.cache.md5 \
+        traceroute \
+ && dnf -y clean all \
+ && wget https://www.internic.net/zones/named.cache.md5 \
  && wget https://www.internic.net/zones/named.cache \
  && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
  && mkdir -p /etc/default/named \
- && mv named.cache* /etc/default/named/ \
- && true
+ && mv named.cache* /etc/default/named/
 
 VOLUME /srv/samba-dc
 
