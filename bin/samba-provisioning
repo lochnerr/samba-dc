@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# samba-provisioning: Samba provisioning and post-provisioning functions.  Only used on first run.
+
 create_samba_config() {
 
   local cfg="/etc/samba/smb.conf"
@@ -65,24 +67,7 @@ __EOF__
 
 }
 
-############################################################ Section: Provision
-
 provision() {
-
-  # TODO Update or delete this...
-  # Here's what I want:
-  # docker environment vars for things common to provision and join modes (i.e. common docker-compose or kubernetes file for master/slave(s)).
-  # /etc/samba/samba-vars for action: master (provision) / slave (join).
-  # Ultimately want samba to run in podman local, docker plain, docker-compose, docker swarm, docker stack or kubernetes, i.e. one master + slave(s).
-  #   - This will require local /srv/samba-dc/etc/samba/samba-vars.
-  #   - OR, $(hostname -s)
-  # Want it to be exceedingly easy to setup.
-
-  # Provision only happens once, ever.
-  # Would you rather have a samba-dc-provision and a samba-dc or just a more complicated samba-dc. samba-dc.
-  # Use docker environment? yes.
-  # Use docker secret for password? Avoids exposure in makefile/compose/kubernetes files. Probably, yes.  NO.
-  # Kubernetes/Swarm probably too complex for samba-dc.  Separate container vms probably good enough.
 
   # Remove default config files.
   rm -f /etc/samba/smb.conf /etc/krb5.conf
@@ -180,9 +165,6 @@ provision() {
   # Create default samba config.
   create_samba_config
 
-  # TODO Not sure about this. Create a smbusers file.
-  ##########################################################################echo "root = administrator" > /etc/samba/smbusers
-
   # Save the backend in use.  It can be changed later.
   echo "$BACKEND" >/etc/samba/backend
 }
@@ -202,8 +184,6 @@ post_provisioning() {
   else
     echo "Reverse zone ${revzone}.in-addr.arpa exists."
   fi
-
-  ############################################################ Section: Main: Additional
 
   # Step 9: Other useful configuration not specified in docs.
 
@@ -242,13 +222,11 @@ post_provisioning() {
     echo "Reverse pointer for $HOST_IP exists."
   fi
 
-  # TODO Figure out how to do this correctly for any network.
+  # TODO Figure out how to do this correctly for IPv6 network.
   # Adding a IPv6 record looks like: samba-tool dns add <server>     <zone>                                   <name>                          <type> <data>
   # Adding a IPv6 record looks like: samba-tool dns add 192.168.33.6 d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa b.f.4.b.f.f.1.c.5.8.5.6.b.a.5.0 PTR    dc1.ad.clone1.com
   ##echo "samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa -U Administrator --password=****"
   ##samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN d.0.2.a.4.3.e.7.0.8.3.0.0.0.6.2.ip6.arpa -U Administrator --password=$PASSWORD 2>&1
-
-  ############################################################ Section: Main: Post Provisioning
 
   # Executed after the controller has been provisioned and started on the first run.
 
@@ -315,31 +293,17 @@ post_provisioning() {
   # Change permissions on the dhcpduser keytab.
   chmod 600 $STATEDIR/dhcpduser.keytab
 
-  [ "$BACKEND" != "BIND9_DLZ" ] && run_named=":"
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # For some reason nsupdates do not work without a restart.
-    if [ -n "$SYSTEMD" ]; then
-      echo "Restarting samba."
-      systemctl stop samba
-      $run_named systemctl stop named
-      sleep 2s
-      $run_named       systemctl start named
-      systemctl start samba
-    else
-      pidfile="/run/samba/samba.pid"
-      [ -e /run/samba.pid ] && pidfile="/run/samba.pid"
-      kill "$(cat $pidfile)"
-      $run_named       kill "$(cat /run/named/named.pid 2>/dev/null || true)"
-      sleep 2s
-      $run_named       start_bind
-      samba
-    fi
+    stop_service samba
+    stop_service named
+    sleep 2s
+    start_service named
+    start_service samba
     # Wait for samba and bind to come up.
     sleep 3s
   fi
 }
-
-############################################################ Section: Setup Bind Default Config
 
 setup_bind_config() {
 
@@ -362,9 +326,12 @@ setup_bind_config() {
   mkdir -p /srv/samba-dc/var/named/log
   mkdir -p /srv/samba-dc/var/named/master
 
-  cp -a /etc/default/named/*.zone              /srv/samba-dc/var/named/master/
-  cp -a /etc/default/named/named.conf.logging  /srv/samba-dc/var/named/
-  cp -a /etc/default/named/named.cache         /srv/samba-dc/var/named/named.root
+  bindir="$(dirname $0)"
+  cp -a $bindir/artifacts/*.zone              /srv/samba-dc/var/named/master/
+  cp -a $bindir/artifacts/named.conf.logging  /srv/samba-dc/var/named/
+
+  # Get the root names servers list.
+  update_named_root_servers
 
   SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
@@ -372,7 +339,7 @@ setup_bind_config() {
   sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \
       -e "s:\$DNS_FORWARDERS:$FORWARDERS:" \
       -e "s:\$BINDDNS_DIR:${BINDDNS_DIR}:" \
-  /etc/default/named/named.conf.tmpl > /srv/samba-dc/etc/named/named.conf
+  $bindir/artifacts/named.conf.tmpl > /srv/samba-dc/etc/named/named.conf
 
   # Fix ownership for newly created files and directories.
   chown -R        root:$NAMED_GROUP /srv/samba-dc/etc/named/
