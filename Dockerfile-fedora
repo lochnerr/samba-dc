@@ -1,59 +1,79 @@
 FROM fedora:29
 
-LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
+LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
+      org.label-schema.name = "samba-dc" \
+      org.label-schema.description = "Samba Active Directory Domain Controller" \
+      org.label-schema.vendor = "Clone Research Corp" \
+      org.label-schema.usage = "https://github.com/lochnerr/samba-dc" \
+      org.label-schema.url = "https://www.samba.org/" \
+      org.label-schema.vcs-url = "https://github.com/lochnerr/samba-dc.git"
 
-# bind - named
-# bind-utils - host
-# tdb-tools - tdbbackup
-# cifs-utils - mount.cifs
-# hostname - hostname
-# wget - wget
-# iproute - ip
+# Manditory packages:
+# samba-dc - the samba domain controller
+# samba-client - required by samba.
+# samba-winbind - required by samba.
+# samba-dc-bind-dlz - required to use the BIND9_DLZ backend.
+# krb5-workstation - required by samba.
+# bind - named (required to use the BIND9_DLZ backend)
+# bind-utils - host (used in provisioning and automated tests)
+# iproute - ip (used in provisioning and automated tests)
+# tdb-tools - tdbbackup (used to create backup of idmap)
+# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
+# procps-ng - ps (Needed to determine if running under systemd)
+# wget - wget (used to get current named.cache file from internet)
+# hostname - hostname (used in samba-set-vars)
+
+# Useful packages for debugging:
 # iputils - ping
 # net-tools - ifconfig
 # nmap - nmap
 # findutils - find
-# procps-ng - ps
 # traceroute - traceroute
 
 RUN dnf -y upgrade \
  && dnf -y install --nodocs \
         samba-dc \
+        samba-client \
+        samba-winbind \
+        samba-dc-bind-dlz \
         krb5-workstation \
         bind \
         bind-utils \
+        iproute \
         tdb-tools \
         cifs-utils \
-        hostname \
+        procps-ng \
         wget \
-        samba-dc-bind-dlz \
-        samba-client \
-        samba-winbind \
-        krb5-auth-dialog \
-        krb5-pkinit \
-        iproute \
+        hostname \
         iputils \
         net-tools \
         nmap \
         findutils \
-        procps-ng \
         traceroute \
- && dnf -y clean all \
- && wget https://www.internic.net/zones/named.cache.md5 \
- && wget https://www.internic.net/zones/named.cache \
- && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
- && mkdir -p /etc/default/named \
- && mv named.cache* /etc/default/named/
+ && dnf -y clean all
 
+# The persistent volume for samba and named.
 VOLUME /srv/samba-dc
 
-COPY samba-ad-dc.service /usr/lib/systemd/system/
+# Use systemd init to bring up services.
+CMD [ "/sbin/init" ]
 
-RUN systemctl enable samba-ad-dc.service
-
-COPY templates/* /etc/default/named/
-
+# Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
 
-CMD [ "/sbin/init" ]
+# Copy the systemd samba service.
+COPY samba-ad-dc.service /usr/lib/systemd/system/
+
+# Enable the systemd samba service.
+RUN systemctl enable samba-ad-dc.service
+
+# Set systemd stop signal.
+STOPSIGNAL SIGRTMIN+3
+
+# Set the build labels.
+# Do this last to allow build cacheing during development.
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL org.label-schema.build-date = $BUILD_DATE \
+      org.label-schema.vcs-ref = $VCS_REF
 
