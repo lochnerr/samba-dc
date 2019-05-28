@@ -7,14 +7,15 @@ wait_for_samba_poll() {
   file="/srv/samba-dc/samba-status"
   [ "$HOST_NAME" = "test-slave" ] && file="/srv/samba-slave/samba-status"
 
-  # Wait up to 3 minutes for server to come up.
-  for try in {0..12} ; do
+  # Wait up to 6 minutes for server to come up.
+  for try in $(seq -s ' ' 1 24) ; do
     [ "$try" != "0" ] && sleep 15s
-     if [ ! -e $file ]; then
+    if [ ! -e $file ]; then
       sleep 15s
     else
       break
     fi
+    echo "Waiting for ${HOST_NAME} to become ready ($try)."
   done
 }
 
