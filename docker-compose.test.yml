@@ -1,116 +1,41 @@
 version: "3.2"
 
-#sudo docker stack deploy -c docker-compose.test.yml samba-dc-testing
+# Samba Active Directory Domain Controller automated test compose file.
 
-# sudo docker exec -ti stack_myservice.1.$(sudo docker service ps -f 'name=samba-dc-testing.1' stack_samba-dc-testing -q --no-trunc | head -n1) /bin/bash
+# Note: This will not work in a docker swarm becuase swarm mode does not support the privileged option.
 
 services:
-  dc1test:
-    image: samba-dc:latest
+  test-master:
+    image: lochnerr/samba-dc:latest
     privileged: true
-    #cap_add:
-    #  - ALL
     command: /usr/local/bin/samba-start
-    #command: /usr/local/bin/sleep-forever
-    #command: /usr/bin/sh -c ". /usr/local/bin/samba-set-vars; set_samba_vars"
     restart: "no"
-    #unsupported container_name: dc1
-    #deploy:
-    # One per node. Need to think about this.
-    #  mode: global
-    #  restart_policy:
-    #    condition: on-failure
-    #    delay: 30s
-    #    max_attempts: 3
-    #    window: 120s
-    #unsupported network_mode: bridge
-    hostname: dc1test.ad.example.com
-    #environment:
-    #  DOMAIN_ACTION: join
-    #  INTERFACES: ${SAMBADC_INTERFACES:-lo eth0}
-    #  REALM: ${SAMBA_REALM:-ad.example.com}
-    #  TZ: ${TZ:-UTC}
-    #  WORKGROUP: ${SAMBA_WORKGROUP:-WORKGROUP}
+    hostname: test-master.ad.example.com
     volumes:
       - dc1:/srv/samba-dc
-    #ports:
-    #  - 1053:53
-    #  - 1053:53/udp
-    #  - 88:88
-    #  - 88:88/udp
-    #  - 135:135
-    #  - 137-138:137-138/udp
-    #  - 139:139
-    #  - 389:389
-    #  - 389:389/udp
-    #  - 445:445
-    #  - 464:464
-    #  - 464:464/udp
-    #  - 636:636
-    #  - 3268-3269:3268-3269
-    #  - 49152-49199
-    #secrets:
-    #  - samba-admin-password
 
-  dc2test:
-    image: samba-dc:latest
-    # Provioning slave does not need privileged.
-    #privileged: true
-    #cap_add:
-    #  - ALL
+  test-slave:
+    image: lochnerr/samba-dc:latest
+    privileged: true
     command: /usr/local/bin/samba-start
-    #command: /usr/local/bin/sleep-forever
-    #command: /usr/bin/sh -c ". /usr/local/bin/samba-set-vars; set_samba_vars"
     restart: "no"
-    #unsupported container_name: dc2
-    #deploy:
-    # One per node. Need to think about this.
-    #  mode: global
-    #  restart_policy:
-    #    condition: on-failure
-    #    delay: 30s
-    #    max_attempts: 3
-    #    window: 120s
-    #unsupported network_mode: bridge
-    hostname: dc2test.ad.example.com
-    #environment:
-    #  DOMAIN_ACTION: join
-    #  INTERFACES: ${SAMBADC_INTERFACES:-lo eth0}
-    #  REALM: ${SAMBA_REALM:-ad.example.com}
-    #  TZ: ${TZ:-UTC}
-    #  WORKGROUP: ${SAMBA_WORKGROUP:-WORKGROUP}
+    hostname: test-slave.ad.example.com
     volumes:
       - dc2:/srv/samba-dc
-    #ports:
-    #  - 1053:53
-    #  - 1053:53/udp
-    #  - 88:88
-    #  - 88:88/udp
-    #  - 135:135
-    #  - 137-138:137-138/udp
-    #  - 139:139
-    #  - 389:389
-    #  - 389:389/udp
-    #  - 445:445
-    #  - 464:464
-    #  - 464:464/udp
-    #  - 636:636
-    #  - 3268-3269:3268-3269
-    #  - 49152-49199
-    #secrets:
-    #  - samba-admin-password
 
-  dc3test:
-    image: samba-dc:latest
-    command: /bin/sh -c ". /usr/local/bin/samba-set-vars; set_samba_vars; /usr/local/bin/sleep-forever"
+  sut:
+    image: lochnerr/samba-dc:latest
+    command: /usr/local/bin/samba-tests-sut
     restart: "no"
-    hostname: dc3test.ad.example.com
+    hostname: sut.ad.example.com
+    volumes:
+      - dc1:/srv/samba-dc
+      - dc2:/srv/samba-slave
+    depends_on:
+      - test-master
+      - test-slave
 
 volumes:
   dc1:
   dc2:
-
-#secrets:
-#  samba-admin-password:
-#    file: /var/adm/admin/secrets/samba-admin-password
 
