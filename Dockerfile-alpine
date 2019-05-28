@@ -1,44 +1,63 @@
 FROM alpine:latest
 
-LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com>
+LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
+      org.label-schema.name = "samba-dc" \
+      org.label-schema.description = "Samba Active Directory Domain Controller" \
+      org.label-schema.vendor = "Clone Research Corp" \
+      org.label-schema.usage = "https://github.com/lochnerr/samba-dc" \
+      org.label-schema.url = "https://www.samba.org/" \
+      org.label-schema.vcs-url = "https://github.com/lochnerr/samba-dc.git"
 
-# bind - named
-# bind-tools - host 
-# tdb - tdbbackup
-# cifs-utils - mount.cifs
-# net-tools - ifconfig, hostname
-# iproute2 - ip
-# tzdata - time zones
+# Manditory packages:
+# samba-dc - the samba domain controller
+# krb5 - required by samba.
+# bind - named (required to use the BIND9_DLZ backend)
+# bind-tools - host (used in provisioning and automated tests)
+# iproute2 - ip (used in provisioning and automated tests)
+# tdb - tdbbackup (used to create backup of idmap)
+# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
+# net-tools - ifconfig, hostname - hostname (used in samba-set-vars)
+# tzdata - time zones (allows setting time zone)
+# ?? openrc
+
+# Useful packages for debugging:
+# nmap - nmap
 
 RUN apk add --update  --no-cache \
         samba-dc \
         krb5 \
         bind \
         bind-tools \
-        net-tools \
+        iproute2 \
         tdb \
         cifs-utils \
-        iproute2 \
-        openssh-client \
+        net-tools \
+        tzdata \
         openrc \
-        tzdata
+        nmap 
 
-RUN wget https://www.internic.net/zones/named.cache.md5 \
- && wget https://www.internic.net/zones/named.cache \
- && [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ] \
- && mkdir -p /etc/default/named \
- && mv named.cache* /etc/default/named/ \
- && true
-
+# The persistent volume for samba and named.
 VOLUME /srv/samba-dc
 
-COPY samba-ad-dc.service /usr/lib/systemd/system/
+# Use openrc init to bring up services.
+#?? CMD [ "/sbin/init" ]
+CMD [ "/usr/local/bin/samba-start" ]
 
-##RUN systemctl enable samba-ad-dc.service
-
-COPY templates/* /etc/default/named/
-
+# Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
 
-CMD [ "/sbin/init" ]
+# Copy the systemd samba service.
+COPY samba-ad-dc.service /usr/lib/systemd/system/
 
+# Enable the systemd samba service.
+#?? RUN systemctl enable samba-ad-dc.service
+
+# Set systemd stop signal.
+STOPSIGNAL SIGRTMIN+3
+
+# Set the build labels.
+# Do this last to allow build cacheing during development.
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL org.label-schema.build-date = $BUILD_DATE \
+      org.label-schema.vcs-ref = $VCS_REF
