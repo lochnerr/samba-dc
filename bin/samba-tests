@@ -214,8 +214,12 @@ test_samba() {
 test_stats() {
 
   echo "$tests tests run."
-  echo "$passed manditory tests passed."
-  echo "$optional optional tests failed."
+  echo "$passed tests passed."
+  if [ "$optional" != "0" ]; then
+    log_warn "$optional optional tests failed!"
+  else
+    echo "No optional tests failed."
+  fi
   if [ "$errs" != "0" ]; then
     log_warn "$errs manditory tests failed!"
   else
