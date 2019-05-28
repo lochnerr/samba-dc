@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# samba-tests-sut: Docker System Unit Tests for automated builds.
+
+wait_for_samba_poll() {
+
+  file="/srv/samba-dc/samba-status"
+  [ "$HOST_NAME" = "test-slave" ] && file="/srv/samba-slave/samba-status"
+
+  # Wait up to 3 minutes for server to come up.
+  for try in {0..12} ; do
+    [ "$try" != "0" ] && sleep 15s
+     if [ ! -e $file ]; then
+      sleep 15s
+    else
+      break
+    fi
+  done
+}
+
+setup_tests() {
+
+  HOST_NAME="$1"
+  HOST_IP="$2"
+
+  echo "Running tests for $HOST_NAME at address ${HOST_IP}."
+
+  # Update the resolv.conf file to point to the master or slave.
+  cat > /etc/resolv.conf <<-__EOF__
+	search $DOMAIN
+	nameserver ${HOST_IP}
+	__EOF__
+
+  if wait_for_samba_poll ; then
+    echo "$HOST_NAME is up!"
+  else
+    test_stats
+    echo "Error: $HOST_NAME is not up, tests failed!"
+    exit 1
+  fi
+}
+
+# Get the master and slave IP's from docker's internal dns.
+MASTER_IP="$(host -t A test-master | grep 'has address' | cut -d ' ' -f 4)"
+SLAVE_IP="$(host -t A test-slave | grep 'has address' | cut -d ' ' -f 4)"
+
+# Set the global vars.
+. samba-set-vars
+set_samba_vars
+
+# Link the dns user keytab.
+
+ln -s /srv/samba-dc/$STATEDIR/dhcpduser.keytab $STATEDIR/dhcpduser.keytab
+
+# Update the hosts file.
+cat > /etc/hosts <<-__EOF__
+	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+	::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
+	__EOF__
+
+# Update the kerberos config.
+cat >/etc/krb5.conf <<-__EOF__
+	[libdefaults]
+	     default_realm = $REALM
+	     dns_lookup_realm = false
+	     dns_lookup_kdc = true
+	__EOF__
+
+# Source the test functions.
+. samba-tests
+
+# Test the master.
+setup_tests test-master $MASTER_IP
+test_samba
+test_stats
+
+# Test the slave.
+setup_tests test-slave $SLAVE_IP
+test_samba
+test_stats
+
+# Signal shutdown for master and slave.
+touch /srv/samba-dc/shutdown-request
+touch /srv/samba-slave/shutdown-request
+
+# It can take up to 15 seconds for services to shut down.
+sleep 15s
+
+rc="0"
+if [ "$errs" != "0" ]; then
+  echo "Error: Manditory tests failed."
+  rc="1"
+fi
+
+echo "Exiting!"
+
+exit $rc
+
