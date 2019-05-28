@@ -1,17 +1,38 @@
 #!/bin/sh
 
+# Samba Domain Controller test functions.
+
+# Test counters.
+tests=0
+passed=0
+optional=0
+errs=0
+
 log_warn() {
   echo "WARNING: $1"
 }
 
+log_pass() {
+  tests=$((tests+1))
+  passed=$((passed+1))
+  if [ -n "$1" ]; then
+    echo "$1 test passed!"
+  fi
+}
+
 log_fail() {
+  tests=$((tests+1))
   errs=$((errs+1))
-  log_warn "$1"
+  log_warn "$1 test failed."
+}
+
+log_fail_optional() {
+  tests=$((tests+1))
+  optional=$((optional+1))
+  log_warn "$1 optional test failed."
 }
 
 test_nsupdate() {
-
-  set +o errexit
 
   if [ "$BACKEND" != "BIND9_DLZ" ]; then
     echo "********************************************************************************************"
@@ -22,10 +43,15 @@ test_nsupdate() {
 
   KEYDIR="$STATEDIR"
   SETPRINCIPAL="dhcpduser@${REALM}"
-  echo "Getting/Refreshing ticket for ${SETPRINCIPAL}"
+  test="Kerberos kinit for ${SETPRINCIPAL}"
   kinit -F -k -t $KEYDIR/dhcpduser.keytab "${SETPRINCIPAL}"
   if [ "$?" != "0" ]; then
-    echo "Kerberos kinit failed, result = $?."
+    log_fail_optional "$test"
+    log_warn "Unable to run nsupdate tests."
+    # The remaining tests will fail without a kerberos ticket so no point in continuing.
+    return
+  else
+    log_pass "$test"
   fi
 
   #NSUPDFLAGS="-d"
@@ -46,10 +72,11 @@ test_nsupdate() {
   result1=$?
 
   # Check the tcp-based ns_test A record in the domain.
+  test="Lookup of record type A ${name}.${DOMAIN}."
   if ! host -t A ${name}.${DOMAIN}. ; then
-    log_fail "Lookup of record type A ${name}.${DOMAIN}. failed."
+    log_fail_optional "$test"
   else
-    echo "host -t A ${name}.${DOMAIN}. lookup successful!"
+    log_pass "$test"
     result1="0"
   fi
 
@@ -65,10 +92,11 @@ test_nsupdate() {
   result2=$?
 
   # Check the tcp-based reverse ptr for ns_test in the domain.
+  test="Lookup of record type PTR for $ip"
   if ! host -t PTR $ip 2>&1 >/dev/null ; then
-    log_fail "Lookup of record type PTR for $ip failed."
+    log_fail_optional "$test"
   else
-    echo "Reverse pointer for $ip exists."
+    log_pass "$test"
     result2="0"
   fi
 
@@ -83,10 +111,11 @@ test_nsupdate() {
   result3=$?
 
   # Vrify that the ns_test A record in the domain has been deleted.
+  test="Delete of record type A ${name}.${DOMAIN}."
   if host -t A ${name}.${DOMAIN}. ; then
-    log_fail "Delete of record type A ${name}.${DOMAIN}. failed."
+    log_fail_optional "$test"
   else
-    echo "host -t A ${name}.${DOMAIN}. delete successful!"
+    log_pass "$test"
     result3="0"
   fi
 
@@ -100,10 +129,11 @@ test_nsupdate() {
   result4=$?
 
   # Verify that the reverse ptr for ns_test in the domain has been deleted.
+  test="Delete of record type PTR for $ip"
   if host -t PTR $ip 2>&1 >/dev/null ; then
-    log_fail "Delete of record type PTR for $ip failed."
+    log_fail_optional "$test"
   else
-    echo "Reverse pointer for $ip delete successful!"
+    echo "$test"
     result4="0"
   fi
 
@@ -111,22 +141,28 @@ test_nsupdate() {
 }
 
 test_samba() {
-  errs=0
 
-  # Disable base error exit.
+  # Some of the tests can only be checked by allowing them to fail
+  # and checking the status after so errexit must be disabled.
   set +o errexit
 
   # Verifying the File Server
 
   # Only run this test if smbclient is available.
   if [ -n "$(command -v smbclient 2> /dev/null)" ]; then
-    if ! smbclient -L localhost -U% ; then
-      log_fail "smbclient -L localhost -U% failed."
+    test="smbclient -L $HOST_IP -U%"
+    if ! smbclient -L $HOST_IP -U% ; then
+      log_fail "$test"
+    else
+      log_pass "$test"
     fi
     echo "$PASSWORD" | kinit Administrator
     smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls' 2>&1
+    test="smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls'"
     if [ "$?" != "0" ]; then
-      log_fail "smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls' failed."
+      log_fail "$test"
+    else
+      log_pass "$test"
     fi
   fi
 
@@ -134,47 +170,56 @@ test_samba() {
 
   # Check the tcp-based _ldap SRV record in the domain.
 
+  test="Lookup of record type SRV _ldap._tcp.${DOMAIN}."
   if ! host -t SRV _ldap._tcp.${DOMAIN}. ; then
-    log_fail "Lookup of record type SRV _ldap._tcp.${DOMAIN}. failed."
+    log_fail "$test"
   else
-    echo "host -t SRV _ldap._tcp.${DOMAIN}. lookup successful!"
+    log_pass "$test"
   fi
 
   # Check the udp-based _kerberos SRV resource record in the domain.
 
+  test="Lookup of record type SRV _kerberos._udp.${DOMAIN}."
   if ! host -t SRV _kerberos._udp.${DOMAIN}. ; then
-    log_fail "Lookup of record type SRV _kerberos._udp.${DOMAIN}. failed."
+    log_fail "$test"
   else
-    echo "host -t SRV _kerberos._udp.${DOMAIN}. lookup successful!"
+    log_pass "$test"
   fi
 
   # Check the A record of the domain controller.
 
+  test="Lookup of record type A ${HOST_NAME}.${DOMAIN}."
   if ! host -t A ${HOST_NAME}.${DOMAIN}. ; then
-    log_fail "Lookup of record type A ${HOST_NAME}.${DOMAIN}. failed."
+    log_fail "$test"
   else
-    echo "host -t A ${HOST_NAME}.${DOMAIN}. lookup successful!"
+    log_pass "$test"
   fi
 
   # Verifying Kerberos
 
+  test="kinit Administrator"
   echo "$PASSWORD" | kinit Administrator
   if [ "$?" != "0" ]; then
-    log_fail "Unable to get kerberos ticket for Administrator."
+    log_fail "$test"
   else
+    log_pass "$test"
     echo "Kerberos tickets:"
     klist
   fi
 
   # Verify nsupdate works with dhcpduser.
-  #[ "$BACKEND" = "BIND9_DLZ" ] && test_nsupdate
-  # TODO Just seeing what happens with SAMBA_INTERNAL
   test_nsupdate
+}
 
-  if [ "$errs" = "0" ]; then
-    echo "All tests passed!"
+test_stats() {
+
+  echo "$tests tests run."
+  echo "$passed manditory tests passed."
+  echo "$optional optional tests failed."
+  if [ "$errs" != "0" ]; then
+    log_warn "$errs manditory tests failed!"
   else
-    log_warn "$errs tests failed!"
+    echo "No manditory tests failed."
   fi
 }
 
