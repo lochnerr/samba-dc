@@ -100,41 +100,47 @@ test_nsupdate() {
     result2="0"
   fi
 
-  # Delete the nstest records.
-  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
+  result3="."
+  if [ "$result1" = "0" ]; then
+    # Delete the nstest records.
+    nsupdate -g ${NSUPDFLAGS} <<-UPDATE
 	server $HOST_IP
 	realm ${REALM}
 	update delete ${name}.${DOMAIN} 3600 A
 	send
 	UPDATE
 
-  result3=$?
+    result3=$?
 
-  # Vrify that the ns_test A record in the domain has been deleted.
-  test="Delete of record type A ${name}.${DOMAIN}."
-  if host -t A ${name}.${DOMAIN}. ; then
-    log_fail_optional "$test"
-  else
-    log_pass "$test"
-    result3="0"
+    # Verify that the ns_test A record in the domain has been deleted.
+    test="Delete of record type A ${name}.${DOMAIN}."
+    if host -t A ${name}.${DOMAIN}. ; then
+      log_fail_optional "$test"
+    else
+      log_pass "$test"
+      result3="0"
+    fi
   fi
 
-  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
+  result4="."
+  if [ "$result2" = "0" ]; then
+    nsupdate -g ${NSUPDFLAGS} <<-UPDATE
 	server $HOST_IP
 	realm ${REALM}
 	update delete ${ptr} 3600 PTR
 	send
 	UPDATE
 
-  result4=$?
+    result4=$?
 
-  # Verify that the reverse ptr for ns_test in the domain has been deleted.
-  test="Delete of record type PTR for $ip"
-  if host -t PTR $ip 2>&1 >/dev/null ; then
-    log_fail_optional "$test"
-  else
-    echo "$test"
-    result4="0"
+    # Verify that the reverse ptr for ns_test in the domain has been deleted.
+    test="Delete of record type PTR for $ip"
+    if host -t PTR $ip 2>&1 >/dev/null ; then
+      log_fail_optional "$test"
+    else
+      echo "$test"
+      result4="0"
+    fi
   fi
 
   echo "nsupdate test results: $result1:$result2:$result3:$result4"
