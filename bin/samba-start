@@ -4,15 +4,34 @@
 
 set -e
 
-# TODO Make easier to migrate existing standalone server (e.g. WINC) to docker.
-# TODO Check different sub-nets for dc's (e.g. multiple availability zones).
-# DONE TODO Think about rsyslogd.  Seems only relevant to Alpine, which doesn't work anyway.
-# DONE - Get rid of? Yes
-# DONE TODO Think about using systemd (Debian and Fedora).
-#  - One thing is clear if using systemd, a samba-ad-dc unit would be required to orchestrate the dns and samba startup.
-# DONE TODO Need to fix persistent /etc/ssh
-# DONE TODO Need to create admin account and link /home/admin & /root
-# DONE TODO Figure out how to get env vars with systemd.
+start_service() {
+
+  if [ -n "$SYSTEMD" ]; then
+    systemctl start $1
+  else
+    if [ "$1" = "named" ]; then
+      export KRB5RCACHETYPE="none"
+      echo "named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS"
+      if ! named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS ; then
+        echo "Named startup failed!"
+        ps aux | grep -i [Nn]amed
+      fi
+    else
+      $1
+    fi
+  fi
+}
+
+stop_service() {
+
+  if [ -n "$SYSTEMD" ]; then
+    systemctl stop $1 || true
+  else
+    pidfile="/run/$1/$1.pid"
+    [ -e /run/$1.pid ] && pidfile="/run/$1.pid"
+    [ -e $pidfile ] && kill "$(cat $pidfile)" || true
+  fi
+}
 
 # Note: This is also used by samba provisioning.
 fixup_smb_config() {
@@ -96,34 +115,32 @@ link_persistent_directories() {
     touch /etc/rc.d/init.d/functions
     ln -sf /srv/samba-dc/etc/named/rndc.key /etc/rndc.key
   fi
+}
 
-  # If using systemd link /etc/ssh (for persistent host keys) and persistent home directory.
-  ##if [ -n "${SYSTEMD}" ]; then
-  if [ "this" = "is to be deleted" ]; then
-    # Stop sshd.
-    systemctl stop sshd
-    # The persistent ssh directory will be created on the first run.
-    if [ ! -d /srv/samba-dc/etc/ssh ]; then
-      echo "Creating persistent ssh directory."
-      mkdir -p /srv/samba-dc/etc/ssh
-      cp -a /etc/ssh/. /srv/samba-dc/etc/ssh
+update_named_root_servers() {
+
+  if [ -z "$NAMED_ROOT_ONCE" ]; then
+    # Update the named root servers.
+    wget https://www.internic.net/zones/named.cache.md5 || touch named.cache.md5
+    wget https://www.internic.net/zones/named.cache || touch named.cache
+    NAMED_ROOT_CHANGED=""
+    # Make sure the checksum is good before doing anything with the file.
+    if [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ]; then
+      NAMED_ROOT_ONCE="true"
+      mkdir -p /srv/samba-dc/var/named
+      touch /srv/samba-dc/var/named/named.root
+      # Only update the named root list if it has changed.
+      if ! diff named.cache /srv/samba-dc/var/named/named.root >/dev/null; then
+        echo "Named root server list has changed."
+        cp -a named.cache         /srv/samba-dc/var/named/named.root
+        chown ${NAMED_USER}:${NAMED_GROUP} /srv/samba-dc/var/named/named.root
+        NAMED_ROOT_CHANGED="true"
+      else
+        echo "Named root server list has not changed, no need to update!"
+      fi
     fi
-    # In a container these links are ephemeral and will be recreated on each run.
-    if [ ! -L "/etc/ssh" ]; then
-      echo "Creating persistent ssh directory links."
-      mv /etc/ssh /etc/ssh-bak
-      ln -s /srv/samba-dc/etc/ssh   /etc/ssh
-    fi
-    # Create persistent home directory on the first run.
-    if [ ! -d /srv/samba-dc/home ]; then
-      mkdir -p /srv/samba-dc/home
-      cp -a /home/. /srv/samba-dc/home
-    fi
-    # link persistent home directory.
-    [ -d /home ] && mv /home  /home-bak
-    ln -s /srv/samba-dc/home  /home
-    # Restart sshd.
-    systemctl start sshd || true
+    rm named.cache.md5
+    rm named.cache
   fi
 }
 
@@ -131,39 +148,13 @@ start_bind() {
 
   # See: https://wiki.samba.org/index.php/Setting_up_a_BIND_DNS_Server
 
-  if [ "1" = "2" ]; then
-    # TODO This will not work native...
-    # Make the syslog messages available outside the container.
-    touch /srv/samba-dc/var/log/messages
-    rm -f /var/log/messages
-    ln -s /srv/samba-dc/var/log/messages /var/log/messages
-
-    echo "Starting rsyslog."
-    # When named starts, its startup messages go to syslog.
-    # If named fails, to identify problems, you must have these messages.
-    rsyslogd
-  fi
-
   echo "Starting named."
 
   chown root:$NAMED_GROUP /etc/krb5.conf
 
-  # TODO This appears to be obsolete, at least for ubuntu, and probably should be removed.
-  if [ ! -e $PRIVATE_DIR/dns.keytab ]; then
-    # If there is no dns.keytab export it now.
-    echo "Exporting dns.keytab for named."
-    samba-tool domain exportkeytab --principal=dns-${HOST_NAME}@$REALM $PRIVATE_DIR/dns.keytab
-    chmod 640 $PRIVATE_DIR/dns.keytab
-    chown root:$NAMED_GROUP $PRIVATE_DIR/dns.keytab
-  fi
-
   # This is needed for Debian/Ubuntu.
   mkdir -p /run/named
   chown ${NAMED_USER}:${NAMED_GROUP} /run/named
-
-  # TODO This is a special alpine test.
-  sed -i 's:# database.*bind9_11.so";:database "dlopen /usr/lib/samba/bind9/dlz_bind9_11.so";:' \
-    $BINDDNS_DIR/named.conf
 
   echo "named-checkconf $ETCNAMED/named.conf"
   named-checkconf $ETCNAMED/named.conf
@@ -171,29 +162,31 @@ start_bind() {
   [ -n "$BIND_LOG_LEVEL" ] && LOG_OPTIONS="-d $BIND_LOG_LEVEL"
 
   # Start bind.
-  if [ -n "$SYSTEMD" ]; then
-    # TODO Fedora specific + cleanup.
-    if [ -e /etc/sysconfig/named ]; then
-      echo "Changing named service configuration file to '/etc/named/named.conf'."
-      sed -i 's:# NAMEDCONF=.*:NAMEDCONF=/etc/named/named.conf:' /etc/sysconfig/named
-      # Fix Fedora named option.  This prevents "replay errors" and is critical for nsupdate to work.
-      # See: https://www.spinics.net/lists/samba/msg147046.html
-      echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
-    fi
-    systemctl start named
-  else
-    export KRB5RCACHETYPE="none"
-    echo "named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS"
-    if ! named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS ; then
-      echo "Named startup failed with error code: $?"
-    fi
+  if [ -e /etc/sysconfig/named ]; then
+    echo "Changing named service configuration file to '/etc/named/named.conf'."
+    sed -i 's:# NAMEDCONF=.*:NAMEDCONF=/etc/named/named.conf:' /etc/sysconfig/named
+    # Fix Fedora named option.  This prevents "replay errors" and is critical for nsupdate to work.
+    # See: https://www.spinics.net/lists/samba/msg147046.html
+    echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
   fi
+
+  start_service named
 
   # Wait for named to fully start.
   sleep 3s
 
+  # Update the list of root servers.
+  update_named_root_servers
+  if [ -n "$NAMED_ROOT_CHANGED" ]; then
+    echo "Restarting named to reload root servers."
+    stop_service named
+    sleep 2s
+    start_service named
+    sleep 5s
+  fi
+
   # Verify named is responding to queries.
-  if ! host -t A localhost 127.0.0.1 ; then
+  if ! host -t A localhost $HOST_IP ; then
     echo "WARNING: named is not responding."
   fi
 }
@@ -201,6 +194,10 @@ start_bind() {
 ############################################################ Section: Main
 
 echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
+
+# Delete files used by system unit test.
+[ -e /srv/samba-dc/samba-status ] && rm -f /srv/samba-dc/samba-status
+[ -e /srv/samba-dc/shutdown-request ] && rm -f /srv/samba-dc/shutdown-request
 
 # Determine if we are running under init system (systemd or openRC).
 if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
@@ -210,6 +207,11 @@ fi
 
 . samba-set-vars
 set_samba_vars
+
+if [ -e /sbin/apk -a "$BACKEND" = "BIND9_DLZ" ]; then
+  echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
+  BACKEND="SAMBA_INTERNAL"
+fi
 
 link_persistent_directories
 
@@ -224,18 +226,12 @@ fi
 
 # Step 1: Preparing the Installation
 
-if [ ! -e /srv/samba-dc/etc/hosts ]; then
-  # Create a hosts file on the persistent volume (First run only).
-  cat > /srv/samba-dc/etc/hosts <<-__EOF__
+# Update the hosts file.
+cat > /etc/hosts <<-__EOF__
 	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 	::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
 	__EOF__
-fi
-
-# The /etc/hosts file is ephemeral, so copy it from the persistent volume.
-# Note: Docker does not allow deleting the /etc/hosts, so write over it instead.
-cat /srv/samba-dc/etc/hosts >/etc/hosts
 
 # Step 2: Installing Samba --- Not needed, already installed.
 
@@ -245,11 +241,9 @@ if [ ! -f $PRIVATE_DIR/secrets.tdb ]; then
   save_backend="$BACKEND"
   if [ "$ROLE" != "master" ]; then
     if [ "$BACKEND" = "BIND9_DLZ" ]; then
-      # Domain join with BIND9_DLZ incorrectly creates the dns-hostname account.
+      # Domain join with BIND9_DLZ incorrectly creates the dns account.
       echo "Forcing domain join to use SAMBA_INTERNAL backend."
       echo "Backend will be upgraded to BIND9_DLZ after the join."
-      ## TODO Debian Samba is 4.5.16-Debian
-      ## Ubuntu 18.04 is 4.7.6-Ubuntu (Note: slave still unable to ns delete nstest ptr, success on restart).
       BACKEND="SAMBA_INTERNAL"
     fi
   fi
@@ -282,17 +276,11 @@ fi
 
 # Step 5: Configuring the DNS Resolver
 
-if [ ! -e /srv/samba-dc/etc/resolv.conf ]; then
-  # Create a resolv.conf file on the persistent volume (First run only).
-  cat > /srv/samba-dc/etc/resolv.conf <<-__EOF__
+# Update the resolv.conf file.
+cat > /etc/resolv.conf <<-__EOF__
 	search $DOMAIN
 	nameserver ${HOST_IP}
 	__EOF__
-fi
-
-# The /etc/resolv.conf file in a container is ephemeral, so copy it from the persistent volume.
-# Note: Docker does not allow deleting the /etc/resolv.conf so it must be overwritten instead.
-cat /srv/samba-dc/etc/resolv.conf >/etc/resolv.conf
 
 # Step 8: Testing your Samba AD DC
 
@@ -312,13 +300,25 @@ sleep 5s
 if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
   . samba-tests
   test_samba
+  test_stats
 fi
 
 echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
 
-if [ -z "$SYSTEMD" ]; then
-  sleep 360000s
-fi
+# Indicates to system unit test that the server is ready.
+echo "Started" > /srv/samba-dc/samba-status
+
+# Check for shutdown request from system unit test.
+while : ; do
+  sleep 15s
+  if [ -e /srv/samba-dc/shutdown-request ]; then
+    stop_service samba
+    [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
+    break
+  fi
+done
+
+echo "Exiting!"
 
 exit 0
 
