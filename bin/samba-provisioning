@@ -121,14 +121,17 @@ provision() {
 
     # Copy the idmap from the master.  This will be needed once the join is complete.
     echo "Mounting sysvol //$DOMAIN/sysvol."
-    mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt  || true
-    if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
-      echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
+    if mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt 2>/dev/null ; then
+      if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
+        echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
+      else
+        echo "//$DOMAIN/sysvol mounted successfully."
+        cp -a /mnt/provision/idmap.ldb.bak /tmp
+      fi
+      umount /mnt
     else
-      echo "//$DOMAIN/sysvol mounted successfully."
-      cp -a /mnt/provision/idmap.ldb.bak /tmp
+      echo "Warning: Failed to mount //$DOMAIN/sysvol, continuing anyway!"
     fi
-    umount /mnt || true
 
     # Get a kerberos ticket.  This *IS* necessary for a successful join.
     echo "$PASSWORD" | kinit Administrator
