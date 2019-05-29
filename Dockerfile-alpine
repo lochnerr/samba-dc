@@ -18,6 +18,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # net-tools - ifconfig, hostname - hostname (used in samba-set-vars)
 # tzdata - time zones (allows setting time zone)
+# util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
 # ?? openrc
 
 # Useful packages for debugging:
@@ -33,6 +34,7 @@ RUN apk add --update  --no-cache \
         cifs-utils \
         net-tools \
         tzdata \
+        util-linux \
         openrc \
         nmap 
 
