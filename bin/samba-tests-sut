@@ -51,7 +51,7 @@ set_samba_vars
 
 # Link the dns user keytab.
 
-ln -s /srv/samba-dc/$STATEDIR/dhcpduser.keytab $STATEDIR/dhcpduser.keytab
+ln -s /srv/samba-dc/dhcpduser.keytab $STATEDIR/dhcpduser.keytab
 
 # Update the hosts file.
 cat > /etc/hosts <<-__EOF__
