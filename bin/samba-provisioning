@@ -183,7 +183,7 @@ post_provisioning() {
   node="$(echo ${HOST_IP} | awk -F '.' '{print $4}')"
   if [ -z "$(host -t SOA ${revzone}.in-addr.arpa 2>/dev/null | grep -i 'has SOA')" ]; then
     echo "Adding reverse dns zone ${revzone}.in-addr.arpa."
-    samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN ${revzone}.in-addr.arpa -U Administrator --password=$PASSWORD 2>&1
+    samba-tool dns zonecreate ${HOST_NAME}.$DOMAIN ${revzone}.in-addr.arpa -P 2>&1
   else
     echo "Reverse zone ${revzone}.in-addr.arpa exists."
   fi
@@ -199,7 +199,7 @@ post_provisioning() {
   # Add IPv4 dns record for this host, if none exists.
   if [ -z "$(host -t A $HOST_NAME | grep -i 'has address')" ]; then
     echo "Adding dns record for $HOST_NAME in $DOMAIN type A ${HOST_IP}"  
-    samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  A  $HOST_IP -U Administrator --password=$PASSWORD 2>&1
+    samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  A  $HOST_IP -P 2>&1
   else
     echo "IPv4 dns record for $HOST_NAME exists."
   fi
@@ -209,7 +209,7 @@ post_provisioning() {
     HOST_IP6="$(ip addr | grep inet6 | grep global | awk '{print $2}' | cut -d '/' -f1)"
     if [ -n "$HOST_IP6" ]; then
       echo "Adding dns record for $HOST_NAME in $DOMAIN type AAAA ${HOST_IP6}"
-      samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  AAAA  $HOST_IP6 -U Administrator --password=$PASSWORD 2>&1
+      samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  AAAA  $HOST_IP6 -P 2>&1
     else
       echo "Not adding IPv6 dns record: No IPv6 address detected."
     fi
@@ -220,7 +220,7 @@ post_provisioning() {
   # Create a reverse pointer record for this server, if none exists.
   if ! host -t PTR $HOST_IP 2>&1 >/dev/null ; then
     echo "Adding reverse pointer record for $node in ${revzone}.in-addr.arpa type PTR ${HOST_NAME}.$DOMAIN"
-    samba-tool dns add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN -U Administrator --password=$PASSWORD 2>&1
+    samba-tool dns add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN -P 2>&1
   else
     echo "Reverse pointer for $HOST_IP exists."
   fi
@@ -296,6 +296,9 @@ post_provisioning() {
   # Change permissions on the dhcpduser keytab.
   chmod 600 $STATEDIR/dhcpduser.keytab
 
+  # Save this to a well-known location for system unit tests to find it.
+  cp -a $STATEDIR/dhcpduser.keytab /srv/samba-dc/
+
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # For some reason nsupdates do not work without a restart.
     stop_service samba
@@ -310,28 +313,30 @@ post_provisioning() {
 
 setup_bind_config() {
 
-  if [ ! -e /srv/samba-dc/etc/named/rndc.key ]; then
+  mkdir -p /var/named
+  [ -e /etc/bind/rndc.key ] && cp -a /etc/bind/rndc.key /var/named/
+  [ -e /etc/rndc.key ]      && cp -a /etc/rndc.key      /var/named/
+
+  if [ ! -e /var/named/rndc.key ]; then
     echo "Generating rndc.key:"
-    rm -f /etc/rndc.key
     if /usr/sbin/rndc-confgen -a -A hmac-sha256 -r /dev/urandom 2>&1 ; then
-      # Alpine and Debian use /etc/bind/rndc.key
-      # Fedora uses /etc/rndc.key
-      [ -e /etc/bind/rndc.key ] && mv /etc/bind/rndc.key /etc/rndc.key
-      chmod 640 /etc/rndc.key
-      chown -R root:$NAMED_GROUP /etc/rndc.key
-      cp -a /etc/rndc.key /srv/samba-dc/etc/named/
+      [ -e /etc/rndc.key ]      && cp -a /etc/rndc.key      /var/named/
+      [ -e /etc/bind/rndc.key ] && cp -a /etc/bind/rndc.key /var/named/
       echo "Successfully created rndc.key file."
     else
       echo "Failed to create rndc.key file."
     fi
   fi
 
-  mkdir -p /srv/samba-dc/var/named/log
-  mkdir -p /srv/samba-dc/var/named/master
+  chmod 640 /var/named/rndc.key
+  chown -R root:$NAMED_GROUP /var/named/rndc.key
+
+  mkdir -p /var/named/log
+  mkdir -p /var/named/master
 
   bindir="$(dirname $0)"
-  cp -a $bindir/artifacts/*.zone              /srv/samba-dc/var/named/master/
-  cp -a $bindir/artifacts/named.conf.logging  /srv/samba-dc/var/named/
+  cp -a $bindir/artifacts/*.zone              /var/named/master/
+  cp -a $bindir/artifacts/named.conf.logging  /var/named/
 
   # Get the root names servers list.
   update_named_root_servers
@@ -342,19 +347,18 @@ setup_bind_config() {
   sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \
       -e "s:\$DNS_FORWARDERS:$FORWARDERS:" \
       -e "s:\$BINDDNS_DIR:${BINDDNS_DIR}:" \
-  $bindir/artifacts/named.conf.tmpl > /srv/samba-dc/etc/named/named.conf
+  $bindir/artifacts/named.conf.tmpl > /var/named/named.conf
 
   # Fix ownership for newly created files and directories.
-  chown -R        root:$NAMED_GROUP /srv/samba-dc/etc/named/
-  chown -R        root:$NAMED_GROUP /srv/samba-dc/var/named/
-  chown -R $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/log
-  chown -R $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/master
-  chown    $NAMED_USER:$NAMED_GROUP /srv/samba-dc/var/named/
+  chown -R        root:$NAMED_GROUP /var/named/
+  chown -R $NAMED_USER:$NAMED_GROUP /var/named/log
+  chown -R $NAMED_USER:$NAMED_GROUP /var/named/master
+  chown    $NAMED_USER:$NAMED_GROUP /var/named/
 
   # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
   chown           root:$NAMED_GROUP ${BINDDNS_DIR}
 
   # Fix permissions.
-  chmod 640 /srv/samba-dc/etc/named/named.conf
-  chmod 640 /srv/samba-dc/var/named/master/*.zone
+  chmod 640 /var/named/named.conf
+  chmod 640 /var/named/master/*.zone
 }
