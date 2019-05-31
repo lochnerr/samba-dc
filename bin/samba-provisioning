@@ -113,12 +113,6 @@ provision() {
 	        dns_lookup_kdc = true
 	__EOF__
 
-    # For debugging.
-    echo "/etc/resolv.conf:"
-    cat /etc/resolv.conf
-    echo "/etc/krb5.conf:"
-    cat /etc/krb5.conf
-
     # Copy the idmap from the master.  This will be needed once the join is complete.
     echo "Mounting sysvol //$DOMAIN/sysvol."
     if mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt 2>/dev/null ; then
@@ -339,7 +333,7 @@ setup_bind_config() {
   cp -a $bindir/artifacts/named.conf.logging  /var/named/
 
   # Get the root names servers list.
-  update_named_root_servers
+  [ "$BACKEND" = "BIND9_DLZ" ] && update_named_root_servers
 
   SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
