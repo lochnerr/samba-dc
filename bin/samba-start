@@ -11,8 +11,8 @@ start_service() {
   else
     if [ "$1" = "named" ]; then
       export KRB5RCACHETYPE="none"
-      echo "named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS"
-      if ! named -u $NAMED_USER -c $ETCNAMED/named.conf $LOG_OPTIONS ; then
+      echo "named -u $NAMED_USER $LOG_OPTIONS"
+      if ! named -u $NAMED_USER $LOG_OPTIONS ; then
         echo "Named startup failed!"
         ps aux | grep -i [Nn]amed
       fi
@@ -57,66 +57,6 @@ fixup_smb_config() {
   fi
 }
 
-link_persistent_directories() {
-
-  # The persistent samba directories will be created on the first run.
-  if [ ! -d /srv/samba-dc/etc/samba ]; then
-    echo "Creating persistent samba directories."
-    mkdir -p /srv/samba-dc/etc/samba
-    cp -a /etc/samba/. /srv/samba-dc/etc/samba/
-    mkdir -p /srv/samba-dc/var/log/samba
-    mkdir -p /srv/samba-dc/var/lib/samba
-    cp -a $STATEDIR/. /srv/samba-dc/var/lib/samba/
-    mkdir -p /srv/samba-dc/var/cache/samba
-  fi
-
-  # In a container these links are ephemeral and will be recreated on each run.
-  if [ ! -L "/etc/samba" ]; then
-    echo "Creating persistent samba directory links."
-    mv /etc/samba /etc/samba-bak
-    ln -s /srv/samba-dc/etc/samba       /etc/samba
-    mv ${LOGFILEBASE} ${LOGFILEBASE}-bak
-    ln -s /srv/samba-dc/var/log/samba   ${LOGFILEBASE}
-    mv ${STATEDIR} ${STATEDIR}-bak
-    ln -s /srv/samba-dc/var/lib/samba  ${STATEDIR}
-    if [ "${CACHEDIR}" != "${STATEDIR}" ]; then
-      mv ${CACHEDIR} ${CACHEDIR}-bak
-      ln -s /srv/samba-dc/var/cache/samba ${CACHEDIR}
-    fi
-  fi
-
-  # Determine bind directories to link.
-  ETCNAMED="/etc/named"
-  VARNAMED="/var/named"
-  [ -d /etc/bind ] && ETCNAMED="/etc/bind"
-  [ -d /var/bind ] && VARNAMED="/var/bind"
-  # Debian uses /var/lib/bind
-  [ -d /var/lib/bind ] && VARNAMED="/var/lib/bind"
-
-  # The persistent bind directories will be created on the first run.
-  if [ ! -d /srv/samba-dc/etc/named ]; then
-    echo "Creating persistent bind directories."
-    mkdir -p /srv/samba-dc/etc/named
-    cp -a $ETCNAMED/. /srv/samba-dc/etc/named/
-    mkdir -p /srv/samba-dc/var/named
-    cp -a $VARNAMED/. /srv/samba-dc/var/named/
-  fi
-
-  # In a container these links are ephemeral and will be recreated on each run.
-  if [ ! -L "${ETCNAMED}" ]; then
-    echo "Creating persistent bind directory links."
-    mv ${ETCNAMED} ${ETCNAMED}-bak
-    ln -s /srv/samba-dc/etc/named   ${ETCNAMED}
-    mv ${VARNAMED} ${VARNAMED}-bak
-    # Note: always link /var/named to persistent directory (It is hard-coded in named.conf).
-    ln -s /srv/samba-dc/var/named   /var/named
-    # This eliminates spurious bind error message.
-    mkdir -p /etc/rc.d/init.d
-    touch /etc/rc.d/init.d/functions
-    ln -sf /srv/samba-dc/etc/named/rndc.key /etc/rndc.key
-  fi
-}
-
 update_named_root_servers() {
 
   if [ -z "$NAMED_ROOT_ONCE" ]; then
@@ -127,13 +67,12 @@ update_named_root_servers() {
     # Make sure the checksum is good before doing anything with the file.
     if [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ]; then
       NAMED_ROOT_ONCE="true"
-      mkdir -p /srv/samba-dc/var/named
-      touch /srv/samba-dc/var/named/named.root
+      touch /var/named/named.root
       # Only update the named root list if it has changed.
-      if ! diff named.cache /srv/samba-dc/var/named/named.root >/dev/null; then
+      if ! diff named.cache /var/named/named.root >/dev/null; then
         echo "Named root server list has changed."
-        cp -a named.cache         /srv/samba-dc/var/named/named.root
-        chown ${NAMED_USER}:${NAMED_GROUP} /srv/samba-dc/var/named/named.root
+        cp -a named.cache /var/named/named.root
+        chown ${NAMED_USER}:${NAMED_GROUP} /var/named/named.root
         NAMED_ROOT_CHANGED="true"
       else
         echo "Named root server list has not changed, no need to update!"
@@ -156,18 +95,29 @@ start_bind() {
   mkdir -p /run/named
   chown ${NAMED_USER}:${NAMED_GROUP} /run/named
 
-  echo "named-checkconf $ETCNAMED/named.conf"
-  named-checkconf $ETCNAMED/named.conf
+  # Copy the persistent named.conf to the usual places.
+  cp -a /var/named/named.conf /etc/
+  [ -d /etc/bind ]   && cp -a /var/named/named.conf /etc/bind/
+  [ -d /etc/named ]  && cp -a /var/named/named.conf /etc/named/
+
+  # Copy the persistent rndc.key to the usual places.
+  cp -a /var/named/rndc.key /etc/
+  mkdir -p /etc/bind
+  cp -a /var/named/rndc.key /etc/bind/
+
+  echo "named-checkconf"
+  named-checkconf
 
   [ -n "$BIND_LOG_LEVEL" ] && LOG_OPTIONS="-d $BIND_LOG_LEVEL"
 
   # Start bind.
   if [ -e /etc/sysconfig/named ]; then
-    echo "Changing named service configuration file to '/etc/named/named.conf'."
-    sed -i 's:# NAMEDCONF=.*:NAMEDCONF=/etc/named/named.conf:' /etc/sysconfig/named
     # Fix Fedora named option.  This prevents "replay errors" and is critical for nsupdate to work.
     # See: https://www.spinics.net/lists/samba/msg147046.html
-    echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
+    if [ -z "$(grep KRB5RCACHETYPE /etc/sysconfig/named)" ]; then
+      echo "Setting KRB5RCACHETYPE='none' in /etc/sysconfig/named."
+      echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
+    fi
   fi
 
   start_service named
@@ -196,8 +146,8 @@ start_bind() {
 echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
 
 # Delete files used by system unit test.
-[ -e /srv/samba-dc/samba-status ] && rm -f /srv/samba-dc/samba-status
-[ -e /srv/samba-dc/shutdown-request ] && rm -f /srv/samba-dc/shutdown-request
+[ -e /var/lib/samba/samba-status ]     && rm -f /var/lib/samba/samba-status
+[ -e /var/lib/samba/shutdown-request ] && rm -f /var/lib/samba/shutdown-request
 
 # Determine if we are running under init system (systemd or openRC).
 if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
@@ -208,17 +158,57 @@ fi
 . samba-set-vars
 set_samba_vars
 
-if [ -e /sbin/apk -a "$BACKEND" = "BIND9_DLZ" ]; then
-  echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
-  BACKEND="SAMBA_INTERNAL"
+if [ -e /sbin/apk ]; then
+  echo "Starting syslog in Alpine."
+  syslogd
+  if [ "$BACKEND" = "BIND9_DLZ" ]; then
+    echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
+    BACKEND="SAMBA_INTERNAL"
+  fi
+fi 
+
+# Create a persistent config directory.
+if [ ! -d ${STATEDIR}/config ]; then
+  echo "Creating persistent config directory in ${STATEDIR}."
+  mkdir -p ${STATEDIR}/config
+  cp -a /etc/samba/. ${STATEDIR}/config
 fi
 
-link_persistent_directories
+# Link /etc/samba to the persistent config directory.
+if [ ! -L "/etc/samba" ]; then
+  echo "Linking /etc/samba to the persistent config directory."
+  [ -d /etc/samba ] && mv /etc/samba /etc/samba-bak
+  ln -s ${STATEDIR}/config /etc/samba
+else
+  echo "/etc/samba already linked (must not be container)."
+fi
+
+# Create a persistent named directory.
+if [ ! -d ${STATEDIR}/named ]; then
+  echo "Creating persistent named directory in ${STATEDIR}."
+  mkdir -p ${STATEDIR}/named
+  [ -e /var/named ] && cp -a /var/named/. ${STATEDIR}/named
+  [ -e /var/bind ]  && cp -a /var/bind/.  ${STATEDIR}/named
+  chown $NAMED_USER:$NAMED_GROUP ${STATEDIR}/named
+fi
+
+# Link /var/named to the persistent directory.
+if [ ! -L "/var/named" ]; then
+  echo "Linking /var/named to the persistent directory."
+  [ -d /var/named ] && mv /var/named /var/named-bak
+  ln -s ${STATEDIR}/named /var/named
+else
+  echo "/var/named already linked (must not be container)."
+fi
 
 # Set the local timezone.
 if [ -n "$TIMEZONE" ]; then
-  echo "Setting timezone to ${TIMEZONE}."
-  ln -fs /usr/share/zoneinfo/$TIMEZONE /etc/localtime || true
+  if [ -e /usr/share/zoneinfo/$TIMEZONE ]; then
+    echo "Setting timezone to ${TIMEZONE}."
+    ln -fs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+  else
+    echo "Timezone ${TIMEZONE} not found, not changing timezone."
+  fi
 fi
 
 # The following are the configuration steps as described in
@@ -306,12 +296,12 @@ fi
 echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
 
 # Indicates to system unit test that the server is ready.
-echo "Started" > /srv/samba-dc/samba-status
+echo "Started" > /var/lib/samba/samba-status
 
 # Check for shutdown request from system unit test.
 while : ; do
   sleep 15s
-  if [ -e /srv/samba-dc/shutdown-request ]; then
+  if [ -e /var/lib/samba/shutdown-request ]; then
     stop_service samba
     [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
     break
