@@ -162,9 +162,9 @@ test_samba() {
     else
       log_pass "$test"
     fi
+    test="smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls'"
     echo "$PASSWORD" | kinit Administrator
     smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls' 2>&1
-    test="smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -k -c 'ls'"
     if [ "$?" != "0" ]; then
       log_fail "$test"
     else
