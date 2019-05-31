@@ -12,7 +12,7 @@ services:
     restart: "no"
     hostname: test-master.ad.example.com
     volumes:
-      - dc1:/srv/samba-dc
+      - dc1:/var/lib/samba
 
   test-slave:
     image: lochnerr/samba-dc:latest
@@ -21,7 +21,7 @@ services:
     restart: "no"
     hostname: test-slave.ad.example.com
     volumes:
-      - dc2:/srv/samba-dc
+      - dc2:/var/lib/samba
 
   sut:
     image: lochnerr/samba-dc:latest
@@ -29,8 +29,8 @@ services:
     restart: "no"
     hostname: sut.ad.example.com
     volumes:
-      - dc1:/srv/samba-dc
-      - dc2:/srv/samba-slave
+      - dc1:/var/lib/samba
+      - dc2:/var/lib/slave
     depends_on:
       - test-master
       - test-slave
