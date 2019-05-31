@@ -4,8 +4,8 @@
 
 wait_for_samba_poll() {
 
-  file="/srv/samba-dc/samba-status"
-  [ "$HOST_NAME" = "test-slave" ] && file="/srv/samba-slave/samba-status"
+  file="/var/lib/samba/samba-status"
+  [ "$HOST_NAME" = "test-slave" ] && file="/var/lib/slave/samba-status"
 
   # Wait up to 6 minutes for server to come up.
   for try in $(seq -s ' ' 1 24) ; do
@@ -49,10 +49,6 @@ SLAVE_IP="$(host -t A test-slave | grep 'has address' | cut -d ' ' -f 4)"
 . samba-set-vars
 set_samba_vars
 
-# Link the dns user keytab.
-
-ln -s /srv/samba-dc/dhcpduser.keytab $STATEDIR/dhcpduser.keytab
-
 # Update the hosts file.
 cat > /etc/hosts <<-__EOF__
 	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
@@ -82,8 +78,8 @@ test_samba
 test_stats
 
 # Signal shutdown for master and slave.
-touch /srv/samba-dc/shutdown-request
-touch /srv/samba-slave/shutdown-request
+touch /var/lib/samba/shutdown-request
+touch /var/lib/slave/shutdown-request
 
 # It can take up to 15 seconds for services to shut down.
 sleep 15s
