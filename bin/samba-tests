@@ -32,6 +32,58 @@ log_fail_optional() {
   log_warn "$1 optional test failed."
 }
 
+nsupdate_add() {
+
+  key="$1"
+  ref="$2"
+  type="${3:-A}"
+  dur="${4:-3600}"
+
+  # Deleta and Add a record.
+  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
+	server $HOST_IP
+	realm ${REALM}
+	update delete $key $dur $type
+	update add $key $dur $type $ref
+	send
+	UPDATE
+
+  # Verify the record was added.
+  test="Lookup of record type $type ${key}"
+  if ! host -t $type $key ; then
+    result=$?
+    log_fail_optional "$test"
+  else
+    result="0"
+    log_pass "$test"
+  fi
+}
+
+nsupdate_del() {
+
+  key="$1"
+  type="${2:-A}"
+  dur="${3:-3600}"
+
+  # Deleta a record.
+  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
+	server $HOST_IP
+	realm ${REALM}
+	update delete $key $dur $type
+	send
+	UPDATE
+
+  # Verify that the record was deleted.
+  test="Delete of record type $type for $key"
+  if host -t $type $key 2>&1 >/dev/null ; then
+    result=$?
+    log_fail_optional "$test"
+  else
+    result="0"
+    log_pass "$test"
+  fi
+}
+
 test_nsupdate() {
 
   if [ "$BACKEND" != "BIND9_DLZ" ]; then
@@ -41,10 +93,8 @@ test_nsupdate() {
     echo "********************************************************************************************"
   fi
 
-  KEYDIR="$STATEDIR"
-  SETPRINCIPAL="dhcpduser@${REALM}"
-  test="Kerberos kinit for ${SETPRINCIPAL}"
-  kinit -F -k -t $KEYDIR/dhcpduser.keytab "${SETPRINCIPAL}"
+  test="Kerberos kinit for dhcpduser@${REALM}"
+  kinit -F -k -t $STATEDIR/dhcpduser.keytab "dhcpduser@${REALM}"
   if [ "$?" != "0" ]; then
     log_fail_optional "$test"
     log_warn "Unable to run nsupdate tests."
@@ -61,89 +111,38 @@ test_nsupdate() {
   ptr=$(echo ${ip} | awk -F '.' '{print $4"."$3"."$2"."$1".in-addr.arpa"}')
 
   # Add the nstest host record.
-  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
-	server $HOST_IP
-	realm ${REALM}
-	update delete ${name}.${DOMAIN} 3600 A
-	update add ${name}.${DOMAIN} 3600 A ${ip}
-	send
-	UPDATE
-
-  result1=$?
-
-  # Check the tcp-based ns_test A record in the domain.
-  test="Lookup of record type A ${name}.${DOMAIN}."
-  if ! host -t A ${name}.${DOMAIN}. ; then
-    log_fail_optional "$test"
-  else
-    log_pass "$test"
-    result1="0"
-  fi
+  nsupdate_add  ${name}.${DOMAIN}  ${ip}  A
+  result1="$result"
 
   # Add the nstest ptr record.
-  nsupdate -g ${NSUPDFLAGS} <<-UPDATE
-	server $HOST_IP
-	realm ${REALM}
-	update delete ${ptr} 3600 PTR
-	update add ${ptr} 3600 PTR ${name}.${DOMAIN}
-	send
-	UPDATE
-
-  result2=$?
-
-  # Check the tcp-based reverse ptr for ns_test in the domain.
-  test="Lookup of record type PTR for $ip"
-  if ! host -t PTR $ip 2>&1 >/dev/null ; then
-    log_fail_optional "$test"
-  else
-    log_pass "$test"
-    result2="0"
-  fi
+  nsupdate_add  ${ptr}  ${name}.${DOMAIN}  PTR
+  result2="$result"
 
   result3="."
   if [ "$result1" = "0" ]; then
-    # Delete the nstest records.
-    nsupdate -g ${NSUPDFLAGS} <<-UPDATE
-	server $HOST_IP
-	realm ${REALM}
-	update delete ${name}.${DOMAIN} 3600 A
-	send
-	UPDATE
-
-    result3=$?
-
-    # Verify that the ns_test A record in the domain has been deleted.
-    test="Delete of record type A ${name}.${DOMAIN}."
-    if host -t A ${name}.${DOMAIN}. ; then
-      log_fail_optional "$test"
-    else
-      log_pass "$test"
-      result3="0"
-    fi
+    # Delete the nstest host record, if it was successfully added.
+    nsupdate_del ${name}.${DOMAIN}  A
+    result3="$result"
   fi
 
   result4="."
   if [ "$result2" = "0" ]; then
-    nsupdate -g ${NSUPDFLAGS} <<-UPDATE
-	server $HOST_IP
-	realm ${REALM}
-	update delete ${ptr} 3600 PTR
-	send
-	UPDATE
-
-    result4=$?
-
-    # Verify that the reverse ptr for ns_test in the domain has been deleted.
-    test="Delete of record type PTR for $ip"
-    if host -t PTR $ip 2>&1 >/dev/null ; then
-      log_fail_optional "$test"
-    else
-      echo "$test"
-      result4="0"
-    fi
+    # Delete the nstest ptr record, if it was successfully added.
+    nsupdate_del ${ptr}  PTR
+    result4="$result"
   fi
 
   echo "nsupdate test results: $result1:$result2:$result3:$result4"
+}
+
+dns_lookup_test() {
+
+  test="Lookup of record type $1 $2"
+  if ! host -t $1 $2 ; then
+    log_fail "$test"
+  else
+    log_pass "$test"
+  fi
 }
 
 test_samba() {
@@ -175,31 +174,13 @@ test_samba() {
   # Verifying DNS
 
   # Check the tcp-based _ldap SRV record in the domain.
-
-  test="Lookup of record type SRV _ldap._tcp.${DOMAIN}."
-  if ! host -t SRV _ldap._tcp.${DOMAIN}. ; then
-    log_fail "$test"
-  else
-    log_pass "$test"
-  fi
+  dns_lookup_test SRV _ldap._tcp.${DOMAIN}.
 
   # Check the udp-based _kerberos SRV resource record in the domain.
-
-  test="Lookup of record type SRV _kerberos._udp.${DOMAIN}."
-  if ! host -t SRV _kerberos._udp.${DOMAIN}. ; then
-    log_fail "$test"
-  else
-    log_pass "$test"
-  fi
+  dns_lookup_test SRV _kerberos._udp.${DOMAIN}.
 
   # Check the A record of the domain controller.
-
-  test="Lookup of record type A ${HOST_NAME}.${DOMAIN}."
-  if ! host -t A ${HOST_NAME}.${DOMAIN}. ; then
-    log_fail "$test"
-  else
-    log_pass "$test"
-  fi
+  dns_lookup_test A ${HOST_NAME}.${DOMAIN}.
 
   # Verifying Kerberos
 
