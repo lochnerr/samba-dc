@@ -1,12 +1,12 @@
 [Unit]
-Description=Samba Active Directory Domain Controller Service
+Description=Samba Active Directory Domain Controller Service for running samba-dc in container under systemd.
 After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c '/usr/bin/mkdir -p /srv/samba-dc/var/log; /usr/local/bin/samba-start 2>&1 | /usr/bin/tee -a /srv/samba-dc/var/log/samba.startup'
+ExecStart=/bin/bash -c '/usr/local/bin/samba-start 2>&1 | /usr/bin/tee -a /var/lib/samba/samba-start.log'
 RemainAfterExit=true
-ExecStop=/bin/touch /srv/samba-dc/shutdown-request
+ExecStop=/bin/touch /var/lib/samba/shutdown-request
 StandardOutput=journal
 
 [Install]
