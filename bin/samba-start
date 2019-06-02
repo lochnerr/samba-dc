@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# samba-dc.sh - Provision and/or start samba domain controller.
+# samba-start - Provision and/or start samba domain controller.
 
 set -e
 
@@ -12,7 +12,9 @@ start_service() {
     if [ "$1" = "named" ]; then
       export KRB5RCACHETYPE="none"
       echo "named -u $NAMED_USER $LOG_OPTIONS"
-      if ! named -u $NAMED_USER $LOG_OPTIONS ; then
+      # Temporary code for Alpine testing.
+      [ -e /sbin/apk ] && valgrind="valgrind --trace-children=yes --log-file=/root/named-vg.txt"
+      if ! $valgrind named -u $NAMED_USER $LOG_OPTIONS ; then
         echo "Named startup failed!"
         ps aux | grep -i [Nn]amed
       fi
@@ -120,6 +122,12 @@ start_bind() {
     fi
   fi
 
+  if [ -e /sbin/apk ]; then
+    # Temporary code for Alpine testing.
+    sed -i 's:/bind9/dlz_bind9_11.so";:/bind9/dlz_bind9_11.so -d 5";:' ${BINDDNS_DIR}/named.conf
+    sed -i 's:/bind9/dlz_bind9_12.so";:/bind9/dlz_bind9_12.so -d 5";:' ${BINDDNS_DIR}/named.conf
+    chown ${NAMED_USER}:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
+  fi
   start_service named
 
   # Wait for named to fully start.
@@ -141,7 +149,7 @@ start_bind() {
   fi
 }
 
-############################################################ Section: Main
+# Start
 
 echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
 
@@ -155,9 +163,6 @@ if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)"
   SYSTEMD="true"
 fi
 
-. samba-set-vars
-set_samba_vars
-
 if [ -e /sbin/apk ]; then
   echo "Starting syslog in Alpine."
   syslogd
@@ -165,7 +170,10 @@ if [ -e /sbin/apk ]; then
     echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
     BACKEND="SAMBA_INTERNAL"
   fi
-fi 
+fi
+
+. samba-set-vars
+set_samba_vars
 
 # Create a persistent config directory.
 if [ ! -d ${STATEDIR}/config ]; then
@@ -180,7 +188,8 @@ if [ ! -L "/etc/samba" ]; then
   [ -d /etc/samba ] && mv /etc/samba /etc/samba-bak
   ln -s ${STATEDIR}/config /etc/samba
 else
-  echo "/etc/samba already linked (must not be container)."
+  # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
+  echo "/etc/samba already linked."
 fi
 
 # Create a persistent named directory.
@@ -198,7 +207,8 @@ if [ ! -L "/var/named" ]; then
   [ -d /var/named ] && mv /var/named /var/named-bak
   ln -s ${STATEDIR}/named /var/named
 else
-  echo "/var/named already linked (must not be container)."
+  # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
+  echo "/var/named already linked."
 fi
 
 # Set the local timezone.
@@ -283,7 +293,7 @@ fi
 echo "Samba started."
 
 # Wait for samba to start.
-sleep 5s
+sleep 3s
 
 [ "$PROVISIONED" = "true" ] && post_provisioning
 
