@@ -290,9 +290,6 @@ post_provisioning() {
   # Change permissions on the dhcpduser keytab.
   chmod 600 $STATEDIR/dhcpduser.keytab
 
-  # Save this to a well-known location for system unit tests to find it.
-  cp -a $STATEDIR/dhcpduser.keytab /srv/samba-dc/
-
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # For some reason nsupdates do not work without a restart.
     stop_service samba
