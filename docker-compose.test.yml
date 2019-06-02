@@ -22,6 +22,9 @@ services:
     hostname: test-slave.ad.example.com
     volumes:
       - dc2:/var/lib/samba
+    # Ensure that the master and slave get consistent IP's on restarts.
+    depends_on:
+      - test-master
 
   sut:
     image: lochnerr/samba-dc:latest
