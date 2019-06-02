@@ -23,11 +23,14 @@ run_tests() {
     if [ -e $file ]; then
       echo "$HOST_NAME is up!"
       test_samba
+      rc="0"
       break
     fi
     sleep 15;
     echo "Waiting for ${HOST_NAME} to become ready ($try)."
+    rc="1"
   done
+  [ "$rc" != "0" ] && log_fail "Waiting for test host to come up"
   test_stats
 }
 
@@ -68,6 +71,8 @@ if [ "$errs" != "0" ]; then
   echo "Error: Manditory tests failed."
   rc="1"
 fi
+
+echo "SUT tests completed!"
 
 echo "Exiting!"
 

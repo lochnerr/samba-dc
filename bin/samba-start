@@ -166,10 +166,8 @@ fi
 if [ -e /sbin/apk ]; then
   echo "Starting syslog in Alpine."
   syslogd
-  if [ "$BACKEND" = "BIND9_DLZ" ]; then
-    echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
-    BACKEND="SAMBA_INTERNAL"
-  fi
+  echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
+  BACKEND="SAMBA_INTERNAL"
 fi
 
 . samba-set-vars

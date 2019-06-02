@@ -48,11 +48,12 @@ nsupdate_add() {
 	send
 	UPDATE
 
+  result="$?"
   # Verify the record was added.
   test="Lookup $type record for ${key}"
   if ! host -t $type $key ; then
-    result=$?
     log_fail_optional "$test"
+    [ "$result" = "0" ] && result="X"
   else
     result="0"
     log_pass "$test"
@@ -73,11 +74,12 @@ nsupdate_del() {
 	send
 	UPDATE
 
+  result="$?"
   # Verify that the record was deleted.
   test="Delete $type record for $key"
   if host -t $type $key 2>&1 >/dev/null ; then
-    result=$?
     log_fail_optional "$test"
+    [ "$result" = "0" ] && result="X"
   else
     result="0"
     log_pass "$test"
