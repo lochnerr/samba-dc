@@ -6,8 +6,7 @@ set_samba_vars() {
 
   # Source samba vars from well-known locations.
 
-  [ -e /srv/samba-vars ]          && . /srv/samba-vars
-  [ -e /srv/samba-dc/samba-vars ] && . /srv/samba-dc/samba-vars
+  [ -e /var/lib/samba/samba-vars ]          && . /var/lib/samba/samba-vars
 
   # Automated testing setup.
   hname="$(hostname -s)"
