@@ -20,6 +20,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # tzdata - time zones (allows setting time zone)
 # util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
 # ?? openrc
+# Added valgrind for debugging BIND9_DLZ crash.
 
 # Useful packages for debugging:
 # nmap - nmap
@@ -36,10 +37,11 @@ RUN apk add --update  --no-cache \
         tzdata \
         util-linux \
         openrc \
+        valgrind \
         nmap 
 
 # The persistent volume for samba and named.
-VOLUME /srv/samba-dc
+VOLUME /var/lib/samba
 
 # Use openrc init to bring up services.
 #?? CMD [ "/sbin/init" ]

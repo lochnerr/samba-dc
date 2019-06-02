@@ -60,7 +60,7 @@ RUN apt-get -y update \
         systemd
 
 # The persistent volume for samba and named.
-VOLUME /srv/samba-dc
+VOLUME /var/lib/samba
 
 # Use systemd init to bring up services.
 #CMD [ "/sbin/init" ]
