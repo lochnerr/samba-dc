@@ -2,8 +2,6 @@ version: "3.2"
 
 # Samba Active Directory Domain Controller automated test compose file.
 
-# Note: This will not work in a docker swarm becuase swarm mode does not support the privileged option.
-
 services:
   test-master:
     image: lochnerr/samba-dc:latest
