@@ -33,7 +33,7 @@ run_tests() {
   done
   if [ "$rc" != "0" ]; then
     echo "**************************** $HOST_NAME startup log."
-    cat /var/log/$dir/samba-startup.log
+    cat /var/lib/$dir/samba-startup.log
     echo "****************************"
     log_fail "Waiting for test host to come up"
   fi
@@ -42,16 +42,14 @@ run_tests() {
 
 wait_for_starting() {
 
-  HOST_NAME="$1"
-
   dir="samba"
-  [ "$HOST_NAME" = "test-slave" ] && dir="slave"
+  [ "$1" = "test-slave" ] && dir="slave"
 
   # Wait up to 1 minute for server to begin starting.
   for try in $(seq -s ' ' 1 4) ; do
     status="$(cat /var/lib/$dir/samba-status || true)"
     if [ "$status" = "Starting" ]; then
-      echo "$HOST_NAME is starting!"
+      echo "$1 is starting!"
       break
     fi
     sleep 15;
