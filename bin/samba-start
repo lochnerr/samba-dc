@@ -149,12 +149,20 @@ start_bind() {
   fi
 }
 
+set_server_status() {
+
+  echo "Setting server status to $1."
+  echo "$1" > /var/lib/samba/samba-status
+}
+
 # Start
 
 echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
 
+# Indicates to system unit test that the server is starting.
+set_server_status "Starting"
+
 # Delete files used by system unit test.
-[ -e /var/lib/samba/samba-status ]     && rm -f /var/lib/samba/samba-status
 [ -e /var/lib/samba/shutdown-request ] && rm -f /var/lib/samba/shutdown-request
 
 # Determine if we are running under init system (systemd or openRC).
@@ -304,17 +312,20 @@ fi
 echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
 
 # Indicates to system unit test that the server is ready.
-echo "Started" > /var/lib/samba/samba-status
+set_server_status "Running"
 
 # Check for shutdown request from system unit test.
 while : ; do
   sleep 15s
   if [ -e /var/lib/samba/shutdown-request ]; then
+    set_server_status "Shutting Down"
     stop_service samba
     [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
     break
   fi
 done
+
+set_server_status "Stopped"
 
 echo "Exiting!"
 

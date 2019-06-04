@@ -15,12 +15,13 @@ run_tests() {
 	nameserver ${HOST_IP}
 	__EOF__
 
-  file="/var/lib/samba/samba-status"
-  [ "$HOST_NAME" = "test-slave" ] && file="/var/lib/slave/samba-status"
+  dir="samba"
+  [ "$HOST_NAME" = "test-slave" ] && dir="slave"
 
   # Wait up to 6 minutes for server to come up.
-  for try in $(seq -s ' ' 1 24) ; do
-    if [ -e $file ]; then
+  for try in $(seq -s ' ' 1 48) ; do
+    status="$(cat /var/lib/$dir/samba-status || true)"
+    if [ "$status" = "Running" ]; then
       echo "$HOST_NAME is up!"
       test_samba
       rc="0"
@@ -30,13 +31,42 @@ run_tests() {
     echo "Waiting for ${HOST_NAME} to become ready ($try)."
     rc="1"
   done
-  [ "$rc" != "0" ] && log_fail "Waiting for test host to come up"
+  if [ "$rc" != "0" ]; then
+    echo "**************************** $HOST_NAME startup log."
+    cat /var/log/$dir/samba-startup.log
+    echo "****************************"
+    log_fail "Waiting for test host to come up"
+  fi
   test_stats
+}
+
+wait_for_starting() {
+
+  HOST_NAME="$1"
+
+  dir="samba"
+  [ "$HOST_NAME" = "test-slave" ] && dir="slave"
+
+  # Wait up to 1 minute for server to begin starting.
+  for try in $(seq -s ' ' 1 4) ; do
+    status="$(cat /var/lib/$dir/samba-status || true)"
+    if [ "$status" = "Starting" ]; then
+      echo "$HOST_NAME is starting!"
+      break
+    fi
+    sleep 15;
+  done
 }
 
 # Get the master and slave IP's from docker's internal dns.
 MASTER_IP="$(host -t A test-master | grep 'has address' | cut -d ' ' -f 4)"
 SLAVE_IP="$(host -t A test-slave | grep 'has address' | cut -d ' ' -f 4)"
+
+echo "Master has address: $MASTER_IP"
+echo "Slave has address:  $SLAVE_IP"
+
+wait_for_starting test-master
+wait_for_starting test-slave
 
 # Set the global vars.
 . samba-set-vars
