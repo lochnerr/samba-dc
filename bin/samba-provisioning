@@ -273,20 +273,22 @@ post_provisioning() {
     if [ -n "$part" -a -n "$mast" ]; then
       echo "samba-tool drs replicate $HOST_NAME $mast $part"
       if ! samba-tool drs replicate $HOST_NAME $mast $part ; then
-        echo "Replication failed, continuing anyway"
+        echo "Replication failed, continuing anyway!"
       else
         echo "Replication suceeded!"
       fi
       echo "samba-tool drs replicate $mast $HOST_NAME $part"
       if ! samba-tool drs replicate $mast $HOST_NAME $part ; then
-        echo "Replication failed, continuing anyway"
+        echo "Replication failed, continuing anyway!"
       else
         echo "Replication suceeded!"
       fi
     fi
 
     # If slave show replication status
-    samba-tool drs showrepl
+    if ! samba-tool drs showrepl ; then
+      echo "Show replication failed, continuing anyway!"
+    fi
   fi
 
   # Alwyas run tests after initial provisioning.
