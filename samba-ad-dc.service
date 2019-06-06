@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c '/usr/local/bin/samba-start 2>&1 | /usr/bin/tee -a /var/lib/samba/samba-start.log'
+ExecStart=/bin/bash -c '/usr/local/bin/samba-start-logged'
 RemainAfterExit=true
 ExecStop=/bin/touch /var/lib/samba/shutdown-request
 StandardOutput=journal

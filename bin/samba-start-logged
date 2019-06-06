@@ -1,4 +1,4 @@
 #!/bin/sh
 
-samba-start 2>&1 | tee /var/lib/samba/samba-startup.log
+samba-start 2>&1 | tee -a /var/lib/samba/samba-startup.log
 

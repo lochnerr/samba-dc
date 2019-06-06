@@ -271,17 +271,11 @@ post_provisioning() {
     part="$(echo ${DOMAIN} | awk -F '.' '{print "dc=" $1 ",dc=" $2 ",dc=" $3}')"
     mast="$(host $MASTER_IP $MASTER_IP | grep "name pointer" | sed 's/^.*pointer //' | cut -d '.' -f 1)"
     if [ -n "$part" -a -n "$mast" ]; then
-      echo "samba-tool drs replicate $HOST_NAME $mast $part"
-      if ! samba-tool drs replicate $HOST_NAME $mast $part ; then
-        echo "Replication failed, continuing anyway!"
-      else
-        echo "Replication suceeded!"
-      fi
       echo "samba-tool drs replicate $mast $HOST_NAME $part"
       if ! samba-tool drs replicate $mast $HOST_NAME $part ; then
         echo "Replication failed, continuing anyway!"
       else
-        echo "Replication suceeded!"
+        echo "Replication succeeded!"
       fi
     fi
 
@@ -299,6 +293,13 @@ post_provisioning() {
 
   # Change permissions on the dhcpduser keytab.
   chmod 600 $STATEDIR/dhcpduser.keytab
+
+  # DNS update test.
+  if ! samba_dnsupdate --all-names --fail-immediately ; then
+    echo "DNS update (samba_dnsupdate) failed, continuing anyway!"
+  else
+    echo "DNS update (samba_dnsupdate) succeeded!"
+  fi
 
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # For some reason nsupdates do not work without a restart.
