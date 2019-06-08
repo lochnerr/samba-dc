@@ -5,9 +5,10 @@ After=network.target network-online.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c '/usr/local/bin/samba-start-logged'
+ExecStart=/bin/bash -c '/usr/local/bin/samba-start'
 ExecStop=/bin/touch /var/lib/samba/shutdown-request
 StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
