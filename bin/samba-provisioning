@@ -161,9 +161,6 @@ provision() {
 
   # Create default samba config.
   create_samba_config
-
-  # Save the backend in use.  It can be changed later.
-  echo "$BACKEND" >/etc/samba/backend
 }
 
 post_provisioning() {
