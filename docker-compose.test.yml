@@ -2,6 +2,8 @@ version: "3.2"
 
 # Samba Active Directory Domain Controller automated test compose file.
 
+# When provisioning master domain controller, privileged is required.
+
 services:
   test-master:
     image: lochnerr/samba-dc:latest
@@ -11,15 +13,18 @@ services:
     hostname: test-master.ad.example.com
     volumes:
       - dc1:/var/lib/samba
+    networks:
+      - testnet
 
   test-slave:
     image: lochnerr/samba-dc:latest
-    privileged: true
     command: /usr/local/bin/samba-start
     restart: "no"
     hostname: test-slave.ad.example.com
     volumes:
       - dc2:/var/lib/samba
+    networks:
+      - testnet
     # Ensure that the master and slave get consistent IP's on restarts.
     depends_on:
       - test-master
@@ -32,6 +37,8 @@ services:
     volumes:
       - dc1:/var/lib/samba
       - dc2:/var/lib/slave
+    networks:
+      - testnet
     depends_on:
       - test-master
       - test-slave
@@ -39,4 +46,7 @@ services:
 volumes:
   dc1:
   dc2:
+
+networks:
+  testnet:
 
