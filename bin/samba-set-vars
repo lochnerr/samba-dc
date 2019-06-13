@@ -65,11 +65,6 @@ set_samba_vars() {
   # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
   [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR=$PRIVATE_DIR
 
-  # Determine the named user (Linux distros have different ones).
-  NAMED_USER="named"
-  [ -n "$(id bind 2>/dev/null)" ] && NAMED_USER="bind"
-  NAMED_GROUP="$(id $NAMED_USER -gn)"
-
   cat <<-__EOF__
 	Samba Settings:
 
@@ -93,10 +88,6 @@ set_samba_vars() {
 	  CACHEDIR             = $CACHEDIR
 	  STATEDIR             = $STATEDIR
 	  PRIVATE_DIR          = $PRIVATE_DIR
-
-	Bind Version:  $(named -v)
-	Bind User:     $NAMED_USER
-	Bind Group:    $NAMED_GROUP
 	__EOF__
 
   if [ -n "$MASTER_IP" ]; then
