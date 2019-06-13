@@ -301,9 +301,9 @@ post_provisioning() {
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # For some reason nsupdates do not work without a restart.
     stop_service samba
-    stop_service named
+    stop_service $NAMED_SERVICE
     sleep 2s
-    start_service named
+    start_service $NAMED_SERVICE
     start_service samba
     # Wait for samba and bind to come up.
     sleep 3s
