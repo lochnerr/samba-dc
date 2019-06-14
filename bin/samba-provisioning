@@ -337,9 +337,6 @@ setup_bind_config() {
   cp -a $bindir/artifacts/*.zone              /var/named/master/
   cp -a $bindir/artifacts/named.conf.logging  /var/named/
 
-  # Get the root names servers list.
-  [ "$BACKEND" = "BIND9_DLZ" ] && update_named_root_servers
-
   SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
 
