@@ -19,6 +19,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # net-tools - ifconfig, hostname - hostname (used in samba-set-vars)
 # tzdata - time zones (allows setting time zone)
 # util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
+# bash - needed by start scripts.
 # ?? openrc
 # Added valgrind for debugging BIND9_DLZ crash.
 
@@ -36,6 +37,7 @@ RUN apk add --update  --no-cache \
         net-tools \
         tzdata \
         util-linux \
+        bash \
         openrc \
         valgrind \
         nmap 
