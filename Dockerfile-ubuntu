@@ -8,7 +8,6 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.url = "https://www.samba.org/" \
       org.label-schema.vcs-url = "https://github.com/lochnerr/samba-dc.git"
 
-
 # Manditory packages:
 # samba - the samba domain controller
 # smbclient - smbclient (required for automated tests).
