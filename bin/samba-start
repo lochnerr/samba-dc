@@ -4,36 +4,6 @@
 
 set -e
 
-start_service() {
-
-  if [ -n "$SYSTEMD" ]; then
-    systemctl start $1
-  else
-    if [ "$1" = "named" ]; then
-      echo "named -u $NAMED_USER $LOG_OPTIONS"
-      # Temporary code for Alpine testing.
-      [ -e /sbin/apk ] && valgrind="valgrind --trace-children=yes --log-file=/root/named-vg.txt"
-      if ! $valgrind named -u $NAMED_USER $LOG_OPTIONS ; then
-        echo "Named startup failed!"
-        ps aux | grep -i [Nn]amed
-      fi
-    else
-      $1
-    fi
-  fi
-}
-
-stop_service() {
-
-  if [ -n "$SYSTEMD" ]; then
-    systemctl stop $1 || true
-  else
-    pidfile="/run/$1/$1.pid"
-    [ -e /run/$1.pid ] && pidfile="/run/$1.pid"
-    [ -e $pidfile ] && kill "$(cat $pidfile)" || true
-  fi
-}
-
 # Note: This is also used by samba provisioning.
 fixup_smb_config() {
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
@@ -58,32 +28,6 @@ fixup_smb_config() {
   fi
 }
 
-update_named_root_servers() {
-
-  if [ -z "$NAMED_ROOT_ONCE" ]; then
-    # Update the named root servers.
-    wget https://www.internic.net/zones/named.cache.md5 || touch named.cache.md5
-    wget https://www.internic.net/zones/named.cache || touch named.cache
-    NAMED_ROOT_CHANGED=""
-    # Make sure the checksum is good before doing anything with the file.
-    if [ "$(cat named.cache.md5)" = "$(md5sum named.cache | cut -d ' ' -f1 )" ]; then
-      NAMED_ROOT_ONCE="true"
-      touch /var/named/named.root
-      # Only update the named root list if it has changed.
-      if ! diff named.cache /var/named/named.root >/dev/null; then
-        echo "Named root server list has changed."
-        cp -a named.cache /var/named/named.root
-        chown ${NAMED_USER}:${NAMED_GROUP} /var/named/named.root
-        NAMED_ROOT_CHANGED="true"
-      else
-        echo "Named root server list has not changed, no need to update!"
-      fi
-    fi
-    rm named.cache.md5
-    rm named.cache
-  fi
-}
-
 start_bind() {
 
   # See: https://wiki.samba.org/index.php/Setting_up_a_BIND_DNS_Server
@@ -92,19 +36,39 @@ start_bind() {
 
   chown root:$NAMED_GROUP /etc/krb5.conf
 
-  # This is needed for Debian/Ubuntu.
-  mkdir -p /run/named
-  chown ${NAMED_USER}:${NAMED_GROUP} /run/named
+  # Setup bind service for distro.
+  case $ID in
+  ubuntu)
+    [ -e /etc/bind/named.conf ] && mv -f /etc/bind/named.conf /etc/bind/named-bak.conf
+    cp -a /var/named/named.conf /etc/bind/
+    cp -a /var/named/rndc.key /etc/bind/
+    [ ! -e /var/named/named.root ] && cp -a /etc/bind/db.root /var/named/named.root
+    mkdir -p /run/named
+    chown ${NAMED_USER}:${NAMED_GROUP} /run/named
+    ;;
+  fedora)
+    [ -e /etc/named.conf ] && mv -f /etc/named.conf /etc/named-bak.conf
+    cp -a /var/named/named.conf /etc/
+    cp -a /var/named/rndc.key /etc/
+    [ ! -e /var/named/named.root ] && cp -a /var/named/named.ca /var/named/named.root
+    ;;
+  alpine)
+    cp -a /var/named/named.conf /etc/bind/
+    cp -a /var/named/rndc.key /etc/bind/
+    [ ! -e /var/named/named.root ] && cp -a /var/bind/named.ca /var/named/named.root
+    mkdir -p /run/named
+    chown ${NAMED_USER}:${NAMED_GROUP} /run/named
+    ;;
+  *)
+    echo "Warning: Unsupported Linux Distro."
+    ;;
+  esac
 
-  # Copy the persistent named.conf to the usual places.
-  cp -a /var/named/named.conf /etc/
-  [ -d /etc/bind ]   && cp -a /var/named/named.conf /etc/bind/
-  [ -d /etc/named ]  && cp -a /var/named/named.conf /etc/named/
-
-  # Copy the persistent rndc.key to the usual places.
-  cp -a /var/named/rndc.key /etc/
-  mkdir -p /etc/bind
-  cp -a /var/named/rndc.key /etc/bind/
+  # Make sure the samba dlz config is readable by named.
+  if [ "$(stat -c '%G' ${BINDDNS_DIR}/named.conf 2>/dev/null || true)" != "${NAMED_GROUP}" ]; then
+    echo "Making ${BINDDNS_DIR}/named.conf readable by root:${NAMED_GROUP}."
+    chown root:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
+  fi
 
   echo "named-checkconf"
   named-checkconf
@@ -130,20 +94,18 @@ start_bind() {
     sed -i 's:/bind9/dlz_bind9_12.so";:/bind9/dlz_bind9_12.so -d 5";:' ${BINDDNS_DIR}/named.conf
     chown ${NAMED_USER}:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
   fi
+  echo "Starting named."
+
+  if [ "$ID" = "fedora" ]; then
+    # This prevents a spurious error message in the logs when running in fedora and is harmless.
+    mkdir -p /etc/rc.d/init.d
+    touch /etc/rc.d/init.d/functions
+  fi
+
   start_service named
 
   # Wait for named to fully start.
   sleep 3s
-
-  # Update the list of root servers.
-  update_named_root_servers
-  if [ -n "$NAMED_ROOT_CHANGED" ]; then
-    echo "Restarting named to reload root servers."
-    stop_service named
-    sleep 2s
-    start_service named
-    sleep 5s
-  fi
 
   # Verify named is responding to queries.
   if ! host -t A localhost $HOST_IP ; then
@@ -164,18 +126,24 @@ echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Contro
 # Indicates to system unit test that the server is starting.
 set_server_status "Starting"
 
-# Delete files used by system unit test.
-[ -e /var/lib/samba/shutdown-request ] && rm -f /var/lib/samba/shutdown-request
+# Determine the named user (Linux distros use different ones).
+NAMED_USER="named"
+[ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
+NAMED_GROUP="$(id $NAMED_USER -gn)"
 
-# Determine if we are running under init system (systemd or openRC).
-if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
-  echo "Running under systemd or openRC."
-  SYSTEMD="true"
-fi
+echo "Bind Version:  $(named -v)"
+
+# Utils provide start_service, stop_service and check_init functions.
+. samba-utils
 
 if [ -e /sbin/apk ]; then
-  echo "Starting syslog in Alpine."
-  syslogd
+  check_init
+  if [ "$SYSINIT" = "true" ]; then
+    mkdir -p /run/samba
+  else
+    echo "Starting busybox syslog in Alpine."
+    syslogd
+  fi
   echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
   BACKEND="SAMBA_INTERNAL"
 fi
@@ -244,7 +212,7 @@ cat > /etc/hosts <<-__EOF__
 # Step 2: Installing Samba --- Not needed, already installed.
 
 # Step 3: Provisioning Samba AD in Non-Interactive Mode (First run only).
-if [ ! -f $PRIVATE_DIR/secrets.tdb ]; then
+if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
   . samba-provisioning
   save_backend="$BACKEND"
   if [ "$ROLE" != "master" ]; then
@@ -257,6 +225,8 @@ if [ ! -f $PRIVATE_DIR/secrets.tdb ]; then
     fi
   fi
   provision
+  # Record the provisioned backend.
+  echo "$BACKEND" >/var/lib/samba/backend
   BACKEND="$save_backend"
   # Create a bind config even if using SAMBA_INTERNAL backend.
   # This will allow switching to BIND9_DLZ at a later time.
@@ -273,11 +243,11 @@ chmod 0644 /etc/krb5.conf
 # Step 4: Setting up the AD DNS back end
 
 # If the dns backend has changed, a samba dns upgrade is required.
-if [ "$BACKEND" != "$(cat /etc/samba/backend  || true)" ]; then
+if [ "$BACKEND" != "$(cat /var/lib/samba/backend  || true)" ]; then
   echo "DNS backend changed to: ${BACKEND}."
   fixup_smb_config
   samba_upgradedns --dns-backend=$BACKEND
-  echo "$BACKEND" >/etc/samba/backend
+  echo "$BACKEND" >/var/lib/samba/backend
 fi
 
 # If using bind backend, start bind.
@@ -294,11 +264,7 @@ cat > /etc/resolv.conf <<-__EOF__
 # Step 8: Testing your Samba AD DC
 
 echo "Starting samba."
-if [ -n "$SYSTEMD" ]; then
-  systemctl start samba
-else
-  samba
-fi
+start_service samba
 echo "Samba started."
 
 # Wait for samba to start.
@@ -316,21 +282,6 @@ echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
 
 # Indicates to system unit test that the server is ready.
 set_server_status "Running"
-
-# Check for shutdown request from system unit test.
-while : ; do
-  sleep 15s
-  if [ -e /var/lib/samba/shutdown-request ]; then
-    set_server_status "Shutting Down"
-    stop_service samba
-    [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
-    break
-  fi
-done
-
-set_server_status "Stopped"
-
-echo "Exiting!"
 
 exit 0
 
