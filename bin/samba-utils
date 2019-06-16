@@ -1,0 +1,73 @@
+#!/bin/sh
+
+# Utility functions for starting and stopping samba processes.
+
+check_init() {
+
+  if [ -z "$SYSINIT" ]; then
+    # Determine if running under init system (systemd or openRC).
+    if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
+      echo "Running under systemd or openRC."
+      SYSINIT="true"
+      # If ubuntu, umask built-in samba service.
+      if [ "$ID" = "ubuntu" ]; then
+        echo "Unmasking samba-ad-dc service."
+        systemctl unmask samba-ad-dc 2>/dev/null || true
+      fi
+    else
+      echo "Running without systemd or openRC."
+      SYSINIT="false"
+    fi
+  fi
+}
+
+start_service() {
+
+  echo "Starting $1 service."
+  check_init
+  if [ "$SYSINIT" = "true" ]; then
+    if [ -x /sbin/apk ]; then
+      /etc/init.d/$1 start
+    else
+      [ "$ID" = "ubuntu" -a "$1" = "samba" ] && svc="samba-ad-dc"
+      [ "$ID" = "ubuntu" -a "$1" = "named" ] && svc="bind9"
+      systemctl start ${svc:-$1}
+    fi
+  else
+    if [ "$1" = "named" ]; then
+      echo "named -u $NAMED_USER $LOG_OPTIONS"
+      # Temporary code for Alpine testing.
+      [ -e /sbin/apk ] && valgrind="valgrind --trace-children=yes --log-file=/root/named-vg.txt"
+      if ! $valgrind named -u $NAMED_USER $LOG_OPTIONS ; then
+        echo "Error: Named startup failed!"
+      fi
+    else
+      $1
+    fi
+  fi
+}
+
+stop_service() {
+
+  echo "Stopping $1 service."
+  check_init
+  if [ "$SYSINIT" = "true" ]; then
+    if [ -x /sbin/apk ]; then
+      /etc/init.d/$1 stop
+    else
+      [ "$ID" = "ubuntu" -a "$1" = "samba" ] && svc="samba-ad-dc"
+      [ "$ID" = "ubuntu" -a "$1" = "named" ] && svc="bind9"
+      systemctl stop ${svc:-$1} || true
+    fi
+  else
+    pidfile="/run/$1/$1.pid"
+    [ -e /run/$1.pid ] && pidfile="/run/$1.pid"
+    if [ -e $pidfile ]; then
+      echo "Killing process $(cat $pidfile) from $pidfile."
+      kill "$(cat $pidfile)" || true
+    else
+      echo "Warning: Not killing process, pidfile not found."
+    fi
+  fi
+}
+

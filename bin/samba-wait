@@ -1,0 +1,80 @@
+#!/bin/sh
+
+# Script to wait for and process signals or commands written to $cmdfile.
+
+set_server_status() {
+
+  echo "Setting server status to $1."
+  echo "Setting server status to $1." >>$logfile
+  echo "$1" > /var/lib/samba/samba-status
+}
+
+start() {
+
+  [ "$BACKEND" = "BIND9_DLZ" ] && start_service named
+  start_service samba  
+}
+
+stop() {
+
+  stop_service samba
+  [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
+}
+
+restart() {
+
+    stop
+    sleep 2s
+    start
+}
+
+shutdown() {
+  set_server_status "Shutting Down" 
+  stop
+  set_server_status "Stopped"
+  echo "Exiting!" >>$logfile
+  exit 0
+}
+
+logfile="/var/lib/samba/samba-startup.log"
+cmdfile="/var/lib/samba/cmd"
+
+echo "***** Processes *****" >>$logfile
+ps aux | grep -v "ps aux"    >>$logfile
+echo "*********************" >>$logfile
+
+. samba-utils
+. /etc/os-release
+
+BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || true)"
+
+# Trap signals.
+trap "restart"  SIGHUP
+trap "shutdown"  SIGINT SIGKILL SIGTERM SIGSTOP
+
+# Check for request
+while : ; do
+  sleep 5s
+  cmd="$(cat $cmdfile 2>/dev/null || true)"
+  case $cmd in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    restart
+    ;;
+  shutdown)
+    shutdown
+    break
+    ;;
+  "")
+    ;;
+  *)
+    echo "Warning: Ignoring unsupported command: '$cmd'." >>$logfile
+    ;;
+  esac
+done
+

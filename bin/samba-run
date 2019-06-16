@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Delete command file.
+rm -f /var/lib/samba/cmd
+
+# Start the samba server with logging.
+samba-start 2>&1 | tee -a /var/lib/samba/samba-startup.log
+
+# Now switch to the wait process.
+exec samba-wait
