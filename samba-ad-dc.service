@@ -5,8 +5,8 @@ After=network.target network-online.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c '/usr/local/bin/samba-start'
-ExecStop=/bin/touch /var/lib/samba/shutdown-request
+ExecStart=/usr/local/bin/samba-run
+ExecStop=/bin/echo "shutdown" >/var/lib/samba/cmd
 StandardOutput=journal
 StandardError=journal
 

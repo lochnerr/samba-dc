@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+
+# Samba Active Directory Domain Controller Service for running samba-dc in container under openrc.
+  
+name=$RC_SVCNAME
+command="/usr/local/bin/samba-run"
+piddir="/run/$RC_SVCNAME"
+pidfile="/run/$RC_SVCNAME/$RC_SVCNAME.pid"
+command_background="true"
+
+depend() {
+        need net
+	use logger
+}
+
+start_pre() {
+	checkpath --directory "$piddir"
+}
+
+stop() {
+	ebegin "Stopping $RC_SVCNAME"
+	/bin/echo "shutdown" >/var/lib/samba/cmd
+	echo "$(date '+%y-%m-%d %H:%M:%S') Stopping openrc $RC_SVCNAME service." >>/var/lib/samba/samba-startup.log
+	/bin/sleep 5s
+	eend $?
+}
+

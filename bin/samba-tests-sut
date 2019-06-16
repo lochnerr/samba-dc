@@ -88,8 +88,8 @@ run_tests test-master $MASTER_IP
 run_tests test-slave $SLAVE_IP
 
 # Signal shutdown for master and slave.
-touch /var/lib/samba/shutdown-request
-touch /var/lib/slave/shutdown-request
+/bin/echo "shutdown" >/var/lib/samba/cmd
+/bin/echo "shutdown" >/var/lib/slave/cmd
 
 # It can take up to 15 seconds for services to shut down.
 sleep 15s
