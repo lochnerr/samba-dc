@@ -11,14 +11,18 @@ set_server_status() {
 
 start() {
 
+  set_server_status "Starting"
   [ "$BACKEND" = "BIND9_DLZ" ] && start_service named
-  start_service samba  
+  start_service samba
+  set_server_status "Running"
 }
 
 stop() {
 
+  set_server_status "Stopping"
   stop_service samba
   [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
+  set_server_status "Stopped"
 }
 
 restart() {
@@ -29,9 +33,7 @@ restart() {
 }
 
 shutdown() {
-  set_server_status "Shutting Down" 
   stop
-  set_server_status "Stopped"
   echo "Exiting!" >>$logfile
   exit 0
 }
@@ -44,7 +46,6 @@ ps aux | grep -v "ps aux"    >>$logfile
 echo "*********************" >>$logfile
 
 . samba-utils
-. /etc/os-release
 
 BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || true)"
 
@@ -68,7 +69,6 @@ while : ; do
     ;;
   shutdown)
     shutdown
-    break
     ;;
   "")
     ;;
