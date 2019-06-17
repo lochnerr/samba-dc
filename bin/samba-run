@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Delete command file.
 rm -f /var/lib/samba/cmd
 
