@@ -13,7 +13,6 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # smbclient - smbclient (required for automated tests).
 # krb5-config - required by samba.
 # krb5-user - required by samba.
-# attr TODO deleting???
 # winbind - required by samba.
 # libpam-winbind - required by samba.
 # libnss-winbind - required by samba.
