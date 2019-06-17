@@ -18,16 +18,16 @@ run_tests() {
   dir="samba"
   [ "$HOST_NAME" = "test-slave" ] && dir="slave"
 
-  # Wait up to 6 minutes for server to come up.
-  for try in $(seq -s ' ' 1 48) ; do
-    status="$(cat /var/lib/$dir/samba-status || true)"
+  # Wait up to 5 minutes for server to come up.
+  for try in $(seq -s ' ' 1 30) ; do
+    status="$(cat /var/lib/$dir/samba-status 2>/dev/null || true)"
     if [ "$status" = "Running" ]; then
       echo "$HOST_NAME is up!"
       test_samba
       rc="0"
       break
     fi
-    sleep 15;
+    sleep 10;
     echo "Waiting for ${HOST_NAME} to become ready ($try)."
     rc="1"
   done
