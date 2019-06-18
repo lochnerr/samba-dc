@@ -51,7 +51,7 @@ BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || true)"
 
 # Trap signals.
 trap "restart"  SIGHUP
-trap "shutdown"  SIGINT SIGKILL SIGTERM SIGSTOP
+trap "shutdown"  SIGINT SIGKILL SIGTERM SIGSTOP SIGRTMIN+3
 
 # Check for request
 while : ; do
