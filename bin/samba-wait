@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Script to wait for and process signals or commands written to $cmdfile.
 
@@ -13,8 +13,10 @@ ps aux | grep -v "ps aux"    >>$logfile
 echo "*********************" >>$logfile
 
 # Trap signals.
-trap "restart"  SIGHUP
-trap "shutdown"  SIGINT SIGKILL SIGTERM SIGSTOP SIGRTMIN+3
+SIGNALS_RESTART="HUP"
+SIGNALS_SHUTDOWN="INT KILL TERM STOP RTMIN+3"
+trap "restart"   $SIGNALS_RESTART
+trap "shutdown"  $SIGNALS_SHUTDOWN
 
 # Check for request
 while : ; do
