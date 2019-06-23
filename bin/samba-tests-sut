@@ -47,7 +47,7 @@ wait_for_starting() {
 
   # Wait up to 1 minute for server to begin starting.
   for try in $(seq -s ' ' 1 4) ; do
-    status="$(cat /var/lib/$dir/samba-status || true)"
+    status="$(cat /var/lib/$dir/samba-status 2>/dev/null || true)"
     if [ "$status" = "Starting" ]; then
       echo "$1 is starting!"
       break
