@@ -5,8 +5,15 @@ set -e
 # Delete command file.
 rm -f /var/lib/samba/cmd
 
+# Indicates to system unit test that the server is starting.
+echo "Starting" > /var/lib/samba/samba-status
+
 # Start the samba server with logging.
 samba-start 2>&1 | tee -a /var/lib/samba/samba-startup.log
+
+# Indicates to system unit test that the server is ready.
+echo "Setting status to running." >>/var/lib/samba/samba-startup.log
+echo "Running" > /var/lib/samba/samba-status
 
 # Now switch to the wait process.
 exec samba-wait
