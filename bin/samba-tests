@@ -151,7 +151,7 @@ test_samba() {
   # and checking the status after so errexit must be disabled.
   set +o errexit
 
-  # Verifying the File Server
+  # Step 9.1: Verifying the File Server
 
   # Only run these tests if smbclient is available.
   if [ -n "$(command -v smbclient 2> /dev/null)" ]; then
@@ -186,7 +186,7 @@ test_samba() {
     [ "$rc" != "0" ] && log_fail "$test"
   fi
 
-  # Verifying DNS
+  # Step 9.2: Verifying DNS
 
   # Check the tcp-based _ldap SRV record in the domain.
   dns_lookup_test SRV _ldap._tcp.${DOMAIN}.
@@ -197,7 +197,7 @@ test_samba() {
   # Check the A record of the domain controller.
   dns_lookup_test A ${HOST_NAME}.${DOMAIN}.
 
-  # Verifying Kerberos
+  # Step 9.3: Verifying Kerberos
 
   test="kinit Administrator"
   echo "$PASSWORD" | kinit Administrator
