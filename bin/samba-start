@@ -28,119 +28,47 @@ fixup_smb_config() {
   fi
 }
 
-start_bind() {
+setup_bind_links() {
 
-  # See: https://wiki.samba.org/index.php/Setting_up_a_BIND_DNS_Server
+  echo "Bind Version:  $(named -v)"
 
-  echo "Starting named."
+  # Determine the named user (Linux distros use different ones).
+  NAMED_USER="named"
+  [ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
+  NAMED_GROUP="$(id $NAMED_USER -gn)"
 
-  chown root:$NAMED_GROUP /etc/krb5.conf
+  STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
+  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
+  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
+  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
 
-  # Setup bind service for distro.
-  case $ID in
-  ubuntu)
-    [ -e /etc/bind/named.conf ] && mv -f /etc/bind/named.conf /etc/bind/named-bak.conf
-    cp -a /var/named/named.conf /etc/bind/
-    cp -a /var/named/rndc.key /etc/bind/
-    [ ! -e /var/named/named.root ] && cp -a /etc/bind/db.root /var/named/named.root
-    mkdir -p /run/named
-    chown ${NAMED_USER}:${NAMED_GROUP} /run/named
-    ;;
-  fedora)
-    [ -e /etc/named.conf ] && mv -f /etc/named.conf /etc/named-bak.conf
-    cp -a /var/named/named.conf /etc/
-    cp -a /var/named/rndc.key /etc/
-    [ ! -e /var/named/named.root ] && cp -a /var/named/named.ca /var/named/named.root
-    ;;
-  alpine)
-    cp -a /var/named/named.conf /etc/bind/
-    cp -a /var/named/rndc.key /etc/bind/
-    [ ! -e /var/named/named.root ] && cp -a /var/bind/named.ca /var/named/named.root
-    mkdir -p /run/named
-    chown ${NAMED_USER}:${NAMED_GROUP} /run/named
-    ;;
-  *)
-    echo "Warning: Unsupported Linux Distro."
-    ;;
-  esac
-
-  # Make sure the samba dlz config is readable by named.
-  if [ "$(stat -c '%G' ${BINDDNS_DIR}/named.conf 2>/dev/null || true)" != "${NAMED_GROUP}" ]; then
-    echo "Making ${BINDDNS_DIR}/named.conf readable by root:${NAMED_GROUP}."
-    chown root:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
+  # Create a persistent named directory.
+  if [ ! -d ${STATEDIR}/named ]; then
+    echo "Creating persistent named directory in ${STATEDIR}."
+    mkdir -p ${STATEDIR}/named
+    [ -e /var/named ] && cp -a /var/named/. ${STATEDIR}/named
+    [ -e /var/bind ]  && cp -a /var/bind/.  ${STATEDIR}/named
+    chown $NAMED_USER:$NAMED_GROUP ${STATEDIR}/named
   fi
 
-  echo "named-checkconf"
-  named-checkconf
-
-  [ -n "$BIND_LOG_LEVEL" ] && LOG_OPTIONS="-d $BIND_LOG_LEVEL"
-
-  # Start bind.
-  if [ -e /etc/sysconfig/named ]; then
-    # Fix Fedora named option.  This prevents "replay errors" and is critical for nsupdate to work.
-    if [ -z "$(grep KRB5RCACHETYPE /etc/sysconfig/named)" ]; then
-      echo "Setting KRB5RCACHETYPE='none' in /etc/sysconfig/named."
-      echo 'KRB5RCACHETYPE="none"' >> /etc/sysconfig/named
-    fi
+  # Link /var/named to the persistent directory.
+  if [ ! -L "/var/named" ]; then
+    echo "Linking /var/named to the persistent directory."
+    [ -d /var/named ] && mv /var/named /var/named-bak
+    ln -s ${STATEDIR}/named /var/named
+  else
+    # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
+    echo "/var/named already linked."
   fi
-
-  # Go ahead and export this.  It is only needed for MIT Kerberos, but it is harmless otherwise.
-  # See: https://bugzilla.samba.org/show_bug.cgi?id=13066
-  export KRB5RCACHETYPE="none"
-
-  if [ -e /sbin/apk ]; then
-    # TODO Temporary code for Alpine testing.
-    sed -i 's:/bind9/dlz_bind9_11.so";:/bind9/dlz_bind9_11.so -d 5";:' ${BINDDNS_DIR}/named.conf
-    sed -i 's:/bind9/dlz_bind9_12.so";:/bind9/dlz_bind9_12.so -d 5";:' ${BINDDNS_DIR}/named.conf
-    chown ${NAMED_USER}:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
-  fi
-  echo "Starting named."
-
-  if [ "$ID" = "fedora" ]; then
-    # This prevents a spurious error message in the logs when running in fedora and is harmless.
-    mkdir -p /etc/rc.d/init.d
-    touch /etc/rc.d/init.d/functions
-  fi
-
-  start_service named
-
-  # Wait for named to fully start.
-  sleep 3s
-
-  # Verify named is responding to queries.
-  if ! host -t A localhost $HOST_IP ; then
-    echo "WARNING: named is not responding."
-  fi
-}
-
-set_server_status() {
-
-  echo "Setting server status to $1."
-  echo "$1" > /var/lib/samba/samba-status
 }
 
 # Start
 
-echo "$(date '+%y-%m-%d %H:%M:%S') Starting Samba Active Directory Domain Controller."
-
-# Indicates to system unit test that the server is starting.
-set_server_status "Starting"
-
-# Determine the named user (Linux distros use different ones).
-NAMED_USER="named"
-[ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
-NAMED_GROUP="$(id $NAMED_USER -gn)"
-
-echo "Bind Version:  $(named -v)"
-
-# Utils provide start_service, stop_service and check_init functions.
+# Utils provide start_service and restart functions.
 . samba-utils
 
 if [ -e /sbin/apk ]; then
-  check_init
-  if [ "$SYSINIT" = "true" ]; then
-    mkdir -p /run/samba
-  else
+  if [ "$SYSINIT" != "true" ]; then
     echo "Starting busybox syslog in Alpine."
     syslogd
   fi
@@ -150,6 +78,8 @@ fi
 
 . samba-set-vars
 set_samba_vars
+
+mkdir -p /run/samba/winbindd
 
 # Create a persistent config directory.
 if [ ! -d ${STATEDIR}/config ]; then
@@ -168,25 +98,6 @@ else
   echo "/etc/samba already linked."
 fi
 
-# Create a persistent named directory.
-if [ ! -d ${STATEDIR}/named ]; then
-  echo "Creating persistent named directory in ${STATEDIR}."
-  mkdir -p ${STATEDIR}/named
-  [ -e /var/named ] && cp -a /var/named/. ${STATEDIR}/named
-  [ -e /var/bind ]  && cp -a /var/bind/.  ${STATEDIR}/named
-  chown $NAMED_USER:$NAMED_GROUP ${STATEDIR}/named
-fi
-
-# Link /var/named to the persistent directory.
-if [ ! -L "/var/named" ]; then
-  echo "Linking /var/named to the persistent directory."
-  [ -d /var/named ] && mv /var/named /var/named-bak
-  ln -s ${STATEDIR}/named /var/named
-else
-  # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
-  echo "/var/named already linked."
-fi
-
 # Set the local timezone.
 if [ -n "$TIMEZONE" ]; then
   if [ -e /usr/share/zoneinfo/$TIMEZONE ]; then
@@ -200,7 +111,9 @@ fi
 # The following are the configuration steps as described in
 # https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller
 
-# Step 1: Preparing the Installation
+# Step 1: Introduction --- Nothing to do.
+
+# Step 2: Preparing the Installation
 
 # Update the hosts file.
 cat > /etc/hosts <<-__EOF__
@@ -209,38 +122,30 @@ cat > /etc/hosts <<-__EOF__
 	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
 	__EOF__
 
-# Step 2: Installing Samba --- Not needed, already installed.
+# Step 3: Installing Samba --- Not needed, already installed.
 
-# Step 3: Provisioning Samba AD in Non-Interactive Mode (First run only).
+# Step 4: Provisioning a Samba Active Directory
+# Step 4.1: Parameter Explanation --- Nothing to do.
+# Step 4.2: Provisioning Samba AD in Interactive Mode --- Not doing interactive install.
+
+# Step 4.3: Provisioning Samba AD in Non-interactive Mode
 if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
+  # The krb5.conf file does not exist (it is created by samba-tool domain provision/join) so provisioning is needed.
   . samba-provisioning
-  save_backend="$BACKEND"
-  if [ "$ROLE" != "master" ]; then
-    if [ "$BACKEND" = "BIND9_DLZ" ]; then
-      # Domain join with BIND9_DLZ incorrectly creates the dns account.
-      # See: https://bugzilla.samba.org/show_bug.cgi?id=13926
-      echo "Forcing domain join to use SAMBA_INTERNAL backend."
-      echo "Backend will be upgraded to BIND9_DLZ after the join."
-      BACKEND="SAMBA_INTERNAL"
-    fi
-  fi
   provision
-  # Record the provisioned backend.
-  echo "$BACKEND" >/var/lib/samba/backend
-  BACKEND="$save_backend"
   # Create a bind config even if using SAMBA_INTERNAL backend.
   # This will allow switching to BIND9_DLZ at a later time.
-  setup_bind_config
+  setup_bind_links
+  provision_bind
   PROVISIONED="true"
 fi
 
-# Step 7 (Out of order from docs): Configuring Kerberos
+# Step 8 (Out of order from docs): Configuring Kerberos
 # This needs to be done before doing a samba_upgradedns.
 
 cp -a $PRIVATE_DIR/krb5.conf /etc/
-chmod 0644 /etc/krb5.conf
 
-# Step 4: Setting up the AD DNS back end
+# Step 5: Setting up the AD DNS back end
 
 # If the dns backend has changed, a samba dns upgrade is required.
 if [ "$BACKEND" != "$(cat /var/lib/samba/backend  || true)" ]; then
@@ -251,9 +156,40 @@ if [ "$BACKEND" != "$(cat /var/lib/samba/backend  || true)" ]; then
 fi
 
 # If using bind backend, start bind.
-[ "$BACKEND" = "BIND9_DLZ" ] && start_bind
+if [ "$BACKEND" = "BIND9_DLZ" ]; then
 
-# Step 5: Configuring the DNS Resolver
+  [ -z "$NAMED_GROUP" ] && setup_bind_links
+
+  # Make sure the krb5 config is readable by named.
+  chown root:$NAMED_GROUP /etc/krb5.conf
+
+  # Make sure the samba dlz config is readable by named.
+  chown root:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
+
+  # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
+  chown root:$NAMED_GROUP ${BINDDNS_DIR}
+
+  # Copy the config and the rndc key files to the proper directory.
+  ETCNAMED="/etc/bind"
+  [ "$ID" = "fedora" ] && ETCNAMED="/etc"
+  cp -a /var/named/named.conf $ETCNAMED/
+  cp -a /var/named/rndc.key   $ETCNAMED/
+
+  echo "Running 'named-checkconf'."
+  named-checkconf
+
+  start_service named
+
+  # Wait for named to fully start.
+  sleep 3s
+
+  # Verify named is responding to queries.
+  if ! host -t A localhost $HOST_IP ; then
+    echo "WARNING: named is not responding."
+  fi
+fi
+
+# Step 6: Configuring the DNS Resolver
 
 # Update the resolv.conf file.
 cat > /etc/resolv.conf <<-__EOF__
@@ -261,27 +197,27 @@ cat > /etc/resolv.conf <<-__EOF__
 	nameserver ${HOST_IP}
 	__EOF__
 
-# Step 8: Testing your Samba AD DC
-
-echo "Starting samba."
 start_service samba
-echo "Samba started."
 
-# Wait for samba to start.
-sleep 3s
+# Step 7: Create a reverse zone --- This is done in post-provisioning.
+if [ "$PROVISIONED" = "true" ]; then
+  # Wait for samba to fully start.
+  sleep 3s
+  post_provisioning
+  if [ "$BACKEND" = "BIND9_DLZ" ]; then
+    # For some reason nsupdates do not work without a restart.
+    restart
+  fi
+fi
 
-[ "$PROVISIONED" = "true" ] && post_provisioning
-
+# Step 9: Testing your Samba AD DC
 if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
+  # Wait for samba and bind to fully come up.
+  sleep 5s
   . samba-tests
   test_samba
   test_stats
 fi
-
-echo "$(date '+%y-%m-%d %H:%M:%S') Done!"
-
-# Indicates to system unit test that the server is ready.
-set_server_status "Running"
 
 exit 0
 
