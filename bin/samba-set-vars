@@ -61,9 +61,6 @@ set_samba_vars() {
   CACHEDIR="$(smbd -b | grep CACHEDIR | awk '{print $2}')"
   STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
   PRIVATE_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
-  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
-  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
-  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR=$PRIVATE_DIR
 
   cat <<-__EOF__
 	Samba Settings:
