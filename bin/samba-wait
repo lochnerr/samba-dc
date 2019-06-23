@@ -1,42 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script to wait for and process signals or commands written to $cmdfile.
 
-set_server_status() {
-
-  echo "Setting server status to $1."
-  echo "Setting server status to $1." >>$logfile
-  echo "$1" > /var/lib/samba/samba-status
-}
-
-start() {
-
-  set_server_status "Starting"
-  [ "$BACKEND" = "BIND9_DLZ" ] && start_service named
-  start_service samba
-  set_server_status "Running"
-}
-
-stop() {
-
-  set_server_status "Stopping"
-  stop_service samba
-  [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
-  set_server_status "Stopped"
-}
-
-restart() {
-
-    stop
-    sleep 2s
-    start
-}
-
-shutdown() {
-  stop
-  echo "Exiting!" >>$logfile
-  exit 0
-}
+# Source the start/stop/restart/shutdown functions.
+. samba-utils
 
 logfile="/var/lib/samba/samba-startup.log"
 cmdfile="/var/lib/samba/cmd"
@@ -44,10 +11,6 @@ cmdfile="/var/lib/samba/cmd"
 echo "***** Processes *****" >>$logfile
 ps aux | grep -v "ps aux"    >>$logfile
 echo "*********************" >>$logfile
-
-. samba-utils
-
-BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || true)"
 
 # Trap signals.
 trap "restart"  SIGHUP
@@ -57,6 +20,10 @@ trap "shutdown"  SIGINT SIGKILL SIGTERM SIGSTOP SIGRTMIN+3
 while : ; do
   sleep 5s
   cmd="$(cat $cmdfile 2>/dev/null || true)"
+  if [ -n "$cmd" ]; then
+    echo "Received $cmd command."                         >>$logfile
+    echo "Status is $(cat /var/lib/samba/samba-status)."  >>$logfile
+  fi
   case $cmd in
   start)
     start
