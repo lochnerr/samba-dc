@@ -20,7 +20,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # tzdata - time zones (allows setting time zone)
 # util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
 # bash - needed by start scripts.
-# ?? openrc
+# openrc - openrc init system.
 # Added valgrind for debugging BIND9_DLZ crash.
 
 # Useful packages for debugging:
@@ -46,20 +46,49 @@ RUN apk add --update  --no-cache \
 VOLUME /var/lib/samba
 
 # Use openrc init to bring up services.
-#?? CMD [ "/sbin/init" ]
-CMD [ "/usr/local/bin/samba-start" ]
+CMD [ "/sbin/init" ]
+
+# Enable OpenRC in Alpine.
+RUN true \
+    # Disable getty's
+    && sed -i 's/^\(tty\d\:\:\)/#\1/g' /etc/inittab \
+    && sed -i \
+        # Change subsystem type to "docker"
+        -e 's/#rc_sys=".*"/rc_sys="docker"/g' \
+        # Allow all variables through
+        -e 's/#rc_env_allow=".*"/rc_env_allow="\*"/g' \
+        # Start crashed services
+        -e 's/#rc_crashed_stop=.*/rc_crashed_stop=NO/g' \
+        -e 's/#rc_crashed_start=.*/rc_crashed_start=YES/g' \
+        # Define extra dependencies for services
+        -e 's/#rc_provide=".*"/rc_provide="loopback net"/g' \
+        /etc/rc.conf \
+    # Remove unnecessary services
+    && rm -f /etc/init.d/hwdrivers \
+            /etc/init.d/hwclock \
+            /etc/init.d/hwdrivers \
+            /etc/init.d/modules \
+            /etc/init.d/modules-load \
+            /etc/init.d/modloop \
+    # Can't do cgroups
+    && sed -i 's/\tcgroup_add_service/\t#cgroup_add_service/g' /lib/rc/sh/openrc-run.sh \
+    && sed -i 's/VSERVER/DOCKER/Ig' /lib/rc/sh/init.sh
 
 # Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
 
-# Copy the systemd samba service.
-COPY samba-ad-dc.service /usr/lib/systemd/system/
-
-# Enable the systemd samba service.
-#?? RUN systemctl enable samba-ad-dc.service
+# Copy the openrc samba service.
+COPY samba-ad-dc /etc/init.d/
+COPY alpine-syslog /etc/init.d/syslog
 
 # Set systemd stop signal.
-STOPSIGNAL SIGRTMIN+3
+STOPSIGNAL TERM
+
+# Enable the samba service and disable other unnecessary services.
+RUN sed -i 's/^tty/#tty/' /etc/inittab \
+ && sed -i 's/#daemon_list="samba"/daemon_list="samba"/' /etc/conf.d/samba \
+ && ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/syslog \
+ && ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/samba-ad-dc
 
 # Set the build labels.
 # Do this last to allow build cacheing during development.
@@ -67,3 +96,4 @@ ARG BUILD_DATE
 ARG VCS_REF
 LABEL org.label-schema.build-date = $BUILD_DATE \
       org.label-schema.vcs-ref = $VCS_REF
+
