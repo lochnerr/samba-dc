@@ -91,6 +91,9 @@ provision() {
       --option="interfaces=${INTERFACES:-lo eth0}" \
       ${rfc2307}
 
+    # Record the provisioned backend.
+    echo "$BACKEND" >/var/lib/samba/backend
+
   else
 
     # Slave join delay to allow time for master to finish provisioning.
@@ -128,26 +131,29 @@ provision() {
     fi
 
     # Get a kerberos ticket.  This *IS* necessary for a successful join.
-    echo "$PASSWORD" | kinit Administrator
-    if [ "$?" != "0" ]; then
+    echo "$PASSWORD" | if ! kinit Administrator ; then
       echo "Cannot authenticate to master domain controller."
       exit 1
     fi
 
     echo "Joining domain '$DOMAIN'."
 
+    if [ "$BACKEND" = "BIND9_DLZ" ]; then
+      # Domain join with BIND9_DLZ incorrectly creates the dns account.
+      # See: https://bugzilla.samba.org/show_bug.cgi?id=13926
+      echo "Forcing domain join to use SAMBA_INTERNAL backend."
+      echo "Backend will be upgraded to BIND9_DLZ after the join."
+    fi
+
     samba-tool domain join $REALM DC \
       -UAdministrator --password=$PASSWORD \
-      --dns-backend=$BACKEND \
+      --dns-backend=SAMBA_INTERNAL \
       --option="bind interfaces only=${BIND_INTERFACES_ONLY:-no}" \
       --option="interfaces=${INTERFACES:-lo eth0}" \
       --option="idmap_ldb:use rfc2307 = ${USE_RFC2307}"
-  fi
-  if [ "$?" != "0" ]; then
-    echo "Provisioning failed!"
-    exit 1
-  else
-    echo "Provision/Join completed successfully."
+
+    # Record the provisioned backend.
+    echo "SAMBA_INTERNAL" >/var/lib/samba/backend
   fi
 
   # If not master, copy the idmap saved above.
@@ -161,6 +167,15 @@ provision() {
 
   # Create default samba config.
   create_samba_config
+}
+
+dns_add() {
+
+  server="$1"; zone="$2"; key="$3"; val="$5"; type="$4"
+
+  if ! samba-tool dns add $server  $zone  $key  $type  $val -P 2>&1 ; then
+    echo "DNS add of $val for $key type $type in $zone failed, continuing anyway."
+  fi
 }
 
 post_provisioning() {
@@ -181,16 +196,10 @@ post_provisioning() {
 
   # Step 9: Other useful configuration not specified in docs.
 
-  # samba_dnsupdate --verbose --all-names --fail-immediately
-  # This works on the fedora master, but only after a reboot.
-
-  # samba-tool fsmo show
-  # samba-tool drs showrepl
-
   # Add IPv4 dns record for this host, if none exists.
   if [ -z "$(host -t A $HOST_NAME | grep -i 'has address')" ]; then
     echo "Adding dns record for $HOST_NAME in $DOMAIN type A ${HOST_IP}"  
-    samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  A  $HOST_IP -P 2>&1
+    dns_add $MASTER_IP  $DOMAIN  $HOST_NAME  A  $HOST_IP
   else
     echo "IPv4 dns record for $HOST_NAME exists."
   fi
@@ -200,7 +209,7 @@ post_provisioning() {
     HOST_IP6="$(ip addr | grep inet6 | grep global | awk '{print $2}' | cut -d '/' -f1)"
     if [ -n "$HOST_IP6" ]; then
       echo "Adding dns record for $HOST_NAME in $DOMAIN type AAAA ${HOST_IP6}"
-      samba-tool dns add $MASTER_IP  $DOMAIN  $HOST_NAME  AAAA  $HOST_IP6 -P 2>&1
+      dns_add $MASTER_IP  $DOMAIN  $HOST_NAME  AAAA  $HOST_IP6
     else
       echo "Not adding IPv6 dns record: No IPv6 address detected."
     fi
@@ -211,7 +220,7 @@ post_provisioning() {
   # Create a reverse pointer record for this server, if none exists.
   if ! host -t PTR $HOST_IP 2>&1 >/dev/null ; then
     echo "Adding reverse pointer record for $node in ${revzone}.in-addr.arpa type PTR ${HOST_NAME}.$DOMAIN"
-    samba-tool dns add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN -P 2>&1
+    dns_add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN
   else
     echo "Reverse pointer for $HOST_IP exists."
   fi
@@ -292,25 +301,55 @@ post_provisioning() {
   chmod 600 $STATEDIR/dhcpduser.keytab
 
   # DNS update test.
+  echo "$PASSWORD" | if ! kinit Administrator ; then
+    echo "Cannot authenticate to domain controller."
+    exit 1
+  fi
   if ! samba_dnsupdate --all-names --fail-immediately ; then
     echo "DNS update (samba_dnsupdate) failed, continuing anyway!"
   else
     echo "DNS update (samba_dnsupdate) succeeded!"
   fi
-
-  if [ "$BACKEND" = "BIND9_DLZ" ]; then
-    # For some reason nsupdates do not work without a restart.
-    stop_service samba
-    stop_service named
-    sleep 2s
-    start_service named
-    start_service samba
-    # Wait for samba and bind to come up.
-    sleep 3s
-  fi
 }
 
-setup_bind_config() {
+append_run_options() {
+
+  # Append default run options to samba-vars file.
+
+  echo "Adding default samba/named run options to samba-vars file."
+
+  case $ID in
+  fedora)
+    . /etc/sysconfig/samba
+    . /etc/sysconfig/named
+    NAMEDOPTIONS="$OPTIONS"
+    ;;
+  ubuntu)
+    [ -r /etc/default/samba ] && . /etc/default/samba
+    . /etc/default/bind9
+    NAMEDOPTIONS="$OPTIONS"
+    ;;
+  alpine)
+    . /etc/conf.d/samba
+    SAMBAOPTIONS="$samba_options"
+    . /etc/conf.d/named
+    NAMEDOPTIONS="$OPTS"
+    ;;
+  esac
+
+  cat >>/var/lib/samba/samba-vars <<-__EOF__
+
+	# Startup options for samba.
+	SAMBAOPTIONS="$SAMBAOPTIONS"
+	
+	# Startup options for named.
+	NAMEDOPTIONS="$NAMEDOPTIONS"
+	__EOF__
+}
+
+provision_bind() {
+
+  append_run_options
 
   mkdir -p /var/named
   [ -e /etc/bind/rndc.key ] && cp -a /etc/bind/rndc.key /var/named/
@@ -351,10 +390,16 @@ setup_bind_config() {
   chown -R $NAMED_USER:$NAMED_GROUP /var/named/master
   chown    $NAMED_USER:$NAMED_GROUP /var/named/
 
-  # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
-  chown           root:$NAMED_GROUP ${BINDDNS_DIR}
-
   # Fix permissions.
   chmod 640 /var/named/named.conf
   chmod 640 /var/named/master/*.zone
+
+  # Create the named.root file from the distro file, if it does not exist.
+  if [ ! -e /var/named/named.root ]; then
+    NAMEDROOT="/var/bind/named.ca"
+    [ "$ID" = "fedora" ] && NAMEDROOT="/var/named/named.ca"
+    [ "$ID" = "ubuntu" ] && NAMEDROOT="/etc/bind/db.root"
+    cp -a $NAMEDROOT /var/named/named.root
+  fi
 }
+
