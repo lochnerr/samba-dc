@@ -136,7 +136,8 @@ shutdown() {
   stop
   # If running in init send kill signal to init process.
   if [ "$SYSINIT" = "true" ]; then
-    echo "Sending kill signal to systemd." >>/var/lib/samba/samba-startup.log
+    [ "$ID"  = "alpine" ] && initsys="OpenRC"
+    echo "Sending kill signal to ${initsys:-systemd}." >>/var/lib/samba/samba-startup.log
     sleep 2s
     sig="RTMIN+3"
     [ "$ID"  = "alpine" ] && sig="INT"
