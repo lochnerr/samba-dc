@@ -23,8 +23,9 @@ run_tests() {
     status="$(cat /var/lib/$dir/samba-status 2>/dev/null || true)"
     if [ "$status" = "Running" ]; then
       echo "$HOST_NAME is up!"
-      test_samba
       rc="0"
+      test_samba
+      [ "$errs" != "0" ] && rc="2"
       break
     fi
     sleep 10;
@@ -32,9 +33,9 @@ run_tests() {
     rc="1"
   done
   if [ "$rc" != "0" ]; then
-    echo "**************************** $HOST_NAME startup log."
+    echo "**************************** $HOST_NAME startup log start."
     cat /var/lib/$dir/samba-startup.log
-    echo "****************************"
+    echo "**************************** $HOST_NAME startup log end."
     log_fail "Waiting for test host to come up"
   fi
   test_stats
