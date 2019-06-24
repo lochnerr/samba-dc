@@ -2,72 +2,180 @@
 
 # Utility functions for starting and stopping samba processes.
 
-check_init() {
+# Because this implementation is compatible with Fedora, Ubuntu and Alpine Linux running with 
+# or without an init system, these functions are not nearly as straightforward as they would
+# be supporting only a single distro.
 
-  if [ -z "$SYSINIT" ]; then
-    # Determine if running under init system (systemd or openRC).
-    if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
-      echo "Running under systemd or openRC."
-      SYSINIT="true"
-      # If ubuntu, umask built-in samba service.
-      if [ "$ID" = "ubuntu" ]; then
-        echo "Unmasking samba-ad-dc service."
-        systemctl unmask samba-ad-dc 2>/dev/null || true
-      fi
-    else
-      echo "Running without systemd or openRC."
-      SYSINIT="false"
-    fi
+set_or_append_option() {
+
+  # Set or append an option value in a config file.
+
+  if grep "${2}=" $1 2>&1 >/dev/null ; then
+    # Replace existing option in file.
+    sed -i "s@.*${2}=.*@${2}=\"$3\"@" $1
+  else
+    # Append missing option to file.
+    echo "${2}=\"$3\"" >>$1
   fi
+}
+
+set_service_options() {
+
+  # When running in Docker, the init configuration files are not persistent and must be
+  # updated on each docker run.
+
+  case $ID in
+  fedora)
+    set_or_append_option /etc/sysconfig/samba SAMBAOPTIONS   "$SAMBAOPTIONS"
+    set_or_append_option /etc/sysconfig/named OPTIONS        "$NAMEDOPTIONS"
+    set_or_append_option /etc/sysconfig/named KRB5RCACHETYPE "none"
+    # This prevents a spurious error message in the logs when running in fedora.
+    mkdir -p /etc/rc.d/init.d
+    touch /etc/rc.d/init.d/functions
+    ;;
+  ubuntu)
+    set_or_append_option /etc/default/samba   SAMBAOPTIONS   "$SAMBAOPTIONS"
+    [ -z "$(echo '$NAMEDOPTIONS' | grep '-u' - 2>/dev/null || :)" ] && NAMEDOPTIONS="-u $BIND_USER $NAMEDOPTIONS"
+    set_or_append_option /etc/default/bind9   OPTIONS        "$NAMEDOPTIONS"
+    echo "Unmasking samba-ad-dc service."
+    systemctl unmask samba-ad-dc 2>/dev/null || :
+    ;;
+  alpine)
+    set_or_append_option /etc/conf.d/samba    samba_options  "$SAMBAOPTIONS"
+    set_or_append_option /etc/conf.d/named    OPTS           "$NAMEDOPTIONS"
+    set_or_append_option /etc/conf.d/samba    daemon_list    "samba"
+    ;;
+  esac
 }
 
 start_service() {
 
-  echo "Starting $1 service."
-  check_init
   if [ "$SYSINIT" = "true" ]; then
-    if [ -x /sbin/apk ]; then
-      /etc/init.d/$1 start
+    echo "Starting $1 service."
+    if [ "$ID" = "alpine" ]; then
+      /sbin/rc-service $1 start
     else
-      [ "$ID" = "ubuntu" -a "$1" = "samba" ] && svc="samba-ad-dc"
-      [ "$ID" = "ubuntu" -a "$1" = "named" ] && svc="bind9"
+      if [ "$ID" = "ubuntu" ]; then
+        [ "$1" = "samba" ] && svc="samba-ad-dc"
+        [ "$1" = "named" ] && svc="bind9"
+      fi 
       systemctl start ${svc:-$1}
     fi
   else
-    if [ "$1" = "named" ]; then
-      echo "named -u $NAMED_USER $LOG_OPTIONS"
-      # Temporary code for Alpine testing.
-      [ -e /sbin/apk ] && valgrind="valgrind --trace-children=yes --log-file=/root/named-vg.txt"
-      if ! $valgrind named -u $NAMED_USER $LOG_OPTIONS ; then
-        echo "Error: Named startup failed!"
-      fi
-    else
-      $1
+    echo "Starting $1 process."
+    opts="" 
+    [ "$1" = "samba" ] && opts="--no-process-group $SAMBAOPTIONS"
+    [ "$1" = "named" ] && opts="-u $BIND_USER $NAMEDOPTIONS"
+    # Temporary code for Alpine testing.
+    [ "$ID" = "alpine" -a "$1" = "named" ] && svc="/usr/bin/valgrind --trace-children=yes --log-file=/root/named-vg.txt $1"
+    if ! ${svc:-$1} $opts ; then
+      echo "Error: $1 process failed to start."
     fi
   fi
 }
 
 stop_service() {
 
-  echo "Stopping $1 service."
-  check_init
   if [ "$SYSINIT" = "true" ]; then
-    if [ -x /sbin/apk ]; then
-      /etc/init.d/$1 stop
+    echo "Stopping $1 service."
+    if [ "$ID" = "alpine" ]; then
+      /sbin/rc-service $1 stop || :
     else
-      [ "$ID" = "ubuntu" -a "$1" = "samba" ] && svc="samba-ad-dc"
-      [ "$ID" = "ubuntu" -a "$1" = "named" ] && svc="bind9"
-      systemctl stop ${svc:-$1} || true
+      if [ "$ID" = "ubuntu" ]; then
+        [ "$1" = "samba" ] && svc="samba-ad-dc"
+        [ "$1" = "named" ] && svc="bind9"
+      fi
+      systemctl stop ${svc:-$1} || :
     fi
   else
     pidfile="/run/$1/$1.pid"
     [ -e /run/$1.pid ] && pidfile="/run/$1.pid"
     if [ -e $pidfile ]; then
-      echo "Killing process $(cat $pidfile) from $pidfile."
-      kill "$(cat $pidfile)" || true
+      echo "Killing $1 process $(cat $pidfile) from $pidfile."
+      kill "$(cat $pidfile)" || :
+      rm $pidfile
     else
-      echo "Warning: Not killing process, pidfile not found."
+      echo "Warning: Not killing process $1, pidfile not found."
     fi
   fi
 }
+
+set_server_status() {
+
+  echo "Setting server status to $1."
+  echo "Setting server status to $1." >>/var/lib/samba/samba-startup.log
+  echo "$1" > /var/lib/samba/samba-status
+}
+
+start() {
+
+  set_server_status "Starting"
+  [ "$BACKEND" = "BIND9_DLZ" ] && start_service named
+  start_service samba
+  set_server_status "Running"
+}
+
+stop() {
+
+  set_server_status "Stopping"
+  stop_service samba
+  [ "$BACKEND" = "BIND9_DLZ" ] && stop_service named
+  set_server_status "Stopped"
+}
+
+restart() {
+
+  set_server_status "Restarting"
+  stop
+  sleep 2s
+  start
+}
+
+shutdown() {
+
+  stop
+  # If running in init send kill signal to init process.
+  if [ "$SYSINIT" = "true" ]; then
+    echo "Sending kill signal to systemd." >>/var/lib/samba/samba-startup.log
+    sleep 2s
+    sig="RTMIN+3"
+    [ "$ID"  = "alpine" ] && sig="INT"
+    kill -s $sig 1
+  fi
+  echo "Shutdown complete." >>/var/lib/samba/samba-startup.log
+  exit 0
+}
+
+# Get ID var.
+. /etc/os-release
+
+# Determine the bind user and group.
+BIND_USER="named"
+[ -n "$(id bind 2>/dev/null || :)" ] && BIND_USER="bind"
+BIND_GROUP="$(id $BIND_USER -gn)"
+
+# Load persistent user settings ($SAMBAOPTIONS and $NAMEDOPTIONS).
+[ -r /var/lib/samba/samba-vars ] && . /var/lib/samba/samba-vars 
+
+# Determine if running under init system (systemd or openRC).
+if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
+  echo "Running under systemd or openRC."
+  SYSINIT="true"
+  # Running under init process so the config files must be updated with the proper settings.
+  set_service_options
+else
+  echo "Running without systemd or openRC."
+  SYSINIT="false"
+  # Fedora named needs this export.
+  [ "$ID" = "fedora" ] && export KRB5RCACHETYPE="none"
+  # Fedora uses /run for samba.pid, Ubuntu and Alpine use /run/samba.
+  [ "$ID" = "ubuntu" -o "$ID" = "alpine" ] && mkdir -p /run/samba
+fi
+
+# All distro's use /run/named for named.pid, so create named run directory and set proper ownership.
+mkdir -p /run/named
+chown $BIND_USER:$BIND_GROUP /run/named
+
+# Determine the dns backend (SAMBA_INTERNAL or BIND9_DLZ).
+BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || :)"
 
