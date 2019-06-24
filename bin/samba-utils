@@ -93,7 +93,8 @@ stop_service() {
     if [ -e $pidfile ]; then
       echo "Killing $1 process $(cat $pidfile) from $pidfile."
       kill "$(cat $pidfile)" || :
-      rm $pidfile
+      # It is possible for the process to remove it's own pid, so check again before removing.
+      [ -e $pidfile ] && rm $pidfile || :
     else
       echo "Warning: Not killing process $1, pidfile not found."
     fi
