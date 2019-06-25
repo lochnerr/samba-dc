@@ -160,7 +160,9 @@ BIND_GROUP="$(id $BIND_USER -gn)"
 [ -r /var/lib/samba/samba-vars ] && . /var/lib/samba/samba-vars 
 
 # Determine if running under init system (systemd or openRC).
-if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep /sbin/init)" ]; then
+INITPROC="/sbin/init"
+[ "$ID" = "ubuntu" ] && INITPROC="/lib/systemd/systemd"
+if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep $INITPROC)" ]; then
   echo "Running under systemd or openRC."
   SYSINIT="true"
   # Running under init process so the config files must be updated with the proper settings.
