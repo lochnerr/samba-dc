@@ -4,7 +4,6 @@
 
 set -e
 
-# Note: This is also used by samba provisioning.
 fixup_smb_config() {
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # BIND9_DLZ, disable samba dns service.
@@ -133,6 +132,7 @@ if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
   # The krb5.conf file does not exist (it is created by samba-tool domain provision/join) so provisioning is needed.
   . samba-provisioning
   provision
+  fixup_smb_config
   # Create a bind config even if using SAMBA_INTERNAL backend.
   # This will allow switching to BIND9_DLZ at a later time.
   setup_bind_links

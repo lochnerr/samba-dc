@@ -63,8 +63,6 @@ cat >$cfg <<__EOF__
 
 __EOF__
 
-  fixup_smb_config
-
 }
 
 provision() {
