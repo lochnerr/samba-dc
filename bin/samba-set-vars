@@ -55,7 +55,7 @@ set_samba_vars() {
   [ "$BACKEND" != "BIND9_DLZ" ] && BACKEND="SAMBA_INTERNAL"
   LOG_LEVEL="${LOG_LEVEL:-1}"
   PASSWORD="${PASSWORD:-Passw0rd}"
-  SLAVE_JOIN_DELAY="${SLAVE_JOIN_DELAY:-150}"
+  SLAVE_JOIN_DELAY="${SLAVE_JOIN_DELAY:-40}"
 
   LOGFILEBASE="$(smbd -b | grep LOGFILEBASE | awk '{print $2}')"
   CACHEDIR="$(smbd -b | grep CACHEDIR | awk '{print $2}')"
