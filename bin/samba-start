@@ -4,7 +4,8 @@
 
 set -e
 
-fixup_smb_config() {
+fixup_backend_config() {
+  # Enable or disable the dns backend in smb.conf depending on the backend in use.
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # BIND9_DLZ, disable samba dns service.
     sed -i \
@@ -27,40 +28,6 @@ fixup_smb_config() {
   fi
 }
 
-setup_bind_links() {
-
-  echo "Bind Version:  $(named -v)"
-
-  # Determine the named user (Linux distros use different ones).
-  NAMED_USER="named"
-  [ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
-  NAMED_GROUP="$(id $NAMED_USER -gn)"
-
-  STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
-  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
-  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
-  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
-
-  # Create a persistent named directory.
-  if [ ! -d ${STATEDIR}/named ]; then
-    echo "Creating persistent named directory in ${STATEDIR}."
-    mkdir -p ${STATEDIR}/named
-    [ -e /var/named ] && cp -a /var/named/. ${STATEDIR}/named
-    [ -e /var/bind ]  && cp -a /var/bind/.  ${STATEDIR}/named
-    chown $NAMED_USER:$NAMED_GROUP ${STATEDIR}/named
-  fi
-
-  # Link /var/named to the persistent directory.
-  if [ ! -L "/var/named" ]; then
-    echo "Linking /var/named to the persistent directory."
-    [ -d /var/named ] && mv /var/named /var/named-bak
-    ln -s ${STATEDIR}/named /var/named
-  else
-    # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
-    echo "/var/named already linked."
-  fi
-}
-
 # Start
 
 # Utils provide start_service and restart functions.
@@ -77,25 +44,6 @@ fi
 
 . samba-set-vars
 set_samba_vars
-
-mkdir -p /run/samba/winbindd
-
-# Create a persistent config directory.
-if [ ! -d ${STATEDIR}/config ]; then
-  echo "Creating persistent config directory in ${STATEDIR}."
-  mkdir -p ${STATEDIR}/config
-  cp -a /etc/samba/. ${STATEDIR}/config
-fi
-
-# Link /etc/samba to the persistent config directory.
-if [ ! -L "/etc/samba" ]; then
-  echo "Linking /etc/samba to the persistent config directory."
-  [ -d /etc/samba ] && mv /etc/samba /etc/samba-bak
-  ln -s ${STATEDIR}/config /etc/samba
-else
-  # This will happen if the container is (re)started without being removed first (e.g. docker-compose up).
-  echo "/etc/samba already linked."
-fi
 
 # Set the local timezone.
 if [ -n "$TIMEZONE" ]; then
@@ -114,12 +62,8 @@ fi
 
 # Step 2: Preparing the Installation
 
-# Update the hosts file.
-cat > /etc/hosts <<-__EOF__
-	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-	::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
-	__EOF__
+# Update the hosts file.  A persistent hosts file is created in the provisioning process.
+[ -e $PRIVATE_DIR/hosts ] && cat $PRIVATE_DIR/hosts > /etc/hosts
 
 # Step 3: Installing Samba --- Not needed, already installed.
 
@@ -132,10 +76,9 @@ if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
   # The krb5.conf file does not exist (it is created by samba-tool domain provision/join) so provisioning is needed.
   . samba-provisioning
   provision
-  fixup_smb_config
+  fixup_backend_config
   # Create a bind config even if using SAMBA_INTERNAL backend.
   # This will allow switching to BIND9_DLZ at a later time.
-  setup_bind_links
   provision_bind
   PROVISIONED="true"
 fi
@@ -150,7 +93,7 @@ cp -a $PRIVATE_DIR/krb5.conf /etc/
 # If the dns backend has changed, a samba dns upgrade is required.
 if [ "$BACKEND" != "$(cat /var/lib/samba/backend  || true)" ]; then
   echo "DNS backend changed to: ${BACKEND}."
-  fixup_smb_config
+  fixup_backend_config
   samba_upgradedns --dns-backend=$BACKEND
   echo "$BACKEND" >/var/lib/samba/backend
 fi
@@ -158,20 +101,9 @@ fi
 # If using bind backend, start bind.
 if [ "$BACKEND" = "BIND9_DLZ" ]; then
 
-  [ -z "$NAMED_GROUP" ] && setup_bind_links
-
-  # Make sure the krb5 config is readable by named.
-  chown root:$NAMED_GROUP /etc/krb5.conf
-
-  # Make sure the samba dlz config is readable by named.
-  chown root:${NAMED_GROUP} ${BINDDNS_DIR}/named.conf
-
-  # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
-  chown root:$NAMED_GROUP ${BINDDNS_DIR}
-
   # Copy the config and the rndc key files to the proper directory.
   ETCNAMED="/etc/bind"
-  [ "$ID" = "fedora" ] && ETCNAMED="/etc"
+  [ ! -d /etc/bind ] && ETCNAMED="/etc"
   cp -a /var/named/named.conf $ETCNAMED/
   cp -a /var/named/rndc.key   $ETCNAMED/
 
@@ -184,18 +116,15 @@ if [ "$BACKEND" = "BIND9_DLZ" ]; then
   sleep 3s
 
   # Verify named is responding to queries.
-  if ! host -t A localhost $HOST_IP ; then
+  if ! host -t A localhost 127.0.0.1 ; then
     echo "WARNING: named is not responding."
   fi
 fi
 
 # Step 6: Configuring the DNS Resolver
 
-# Update the resolv.conf file.
-cat > /etc/resolv.conf <<-__EOF__
-	search $DOMAIN
-	nameserver ${HOST_IP}
-	__EOF__
+# Update the resolv.conf file.  A persistent resolv.conf file is created in the provisioning process.
+[ -e $PRIVATE_DIR/resolv.conf ] && cat $PRIVATE_DIR/resolv.conf > /etc/resolv.conf
 
 start_service samba
 

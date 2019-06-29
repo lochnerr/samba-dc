@@ -67,6 +67,11 @@ __EOF__
 
 provision() {
 
+  # Create a persistent config directory (first run only).
+  echo "Creating persistent config directory in ${STATEDIR}."
+  mkdir -p ${STATEDIR}/config
+  cp -a /etc/samba-bak/. ${STATEDIR}/config
+
   # Remove default config files.
   rm -f /etc/samba/smb.conf /etc/krb5.conf
 
@@ -165,6 +170,21 @@ provision() {
 
   # Create default samba config.
   create_samba_config
+
+  # Create a docker persistent hosts file.
+  cat > /etc/hosts <<-__EOF__
+	127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+	::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+	$HOST_IP    ${HOST_NAME}.$DOMAIN ${HOST_NAME}
+	__EOF__
+  cp -a /etc/hosts $PRIVATE_DIR/
+
+  # Create a docker persistent resolv.conf file.
+  cat > /etc/resolv.conf <<-__EOF__
+	search $DOMAIN
+	nameserver ${HOST_IP}
+	__EOF__
+  cp -a /etc/hosts $PRIVATE_DIR/
 }
 
 dns_add() {
@@ -216,7 +236,7 @@ post_provisioning() {
   fi
 
   # Create a reverse pointer record for this server, if none exists.
-  if ! host -t PTR $HOST_IP 2>&1 >/dev/null ; then
+  if ! host -t PTR $HOST_IP >/dev/null 2>&1 ; then
     echo "Adding reverse pointer record for $node in ${revzone}.in-addr.arpa type PTR ${HOST_NAME}.$DOMAIN"
     dns_add $MASTER_IP ${revzone}.in-addr.arpa $node PTR ${HOST_NAME}.$DOMAIN
   else
@@ -347,6 +367,20 @@ append_run_options() {
 
 provision_bind() {
 
+  echo "Bind Version:  $(named -v)"
+
+  # Determine the named user (Linux distros use different ones).
+  NAMED_USER="named"
+  [ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
+  NAMED_GROUP="$(id $NAMED_USER -gn)"
+
+  # Create a persistent named directory.
+  echo "Creating persistent named directory in ${STATEDIR}."
+  mkdir -p ${STATEDIR}/named
+  [ -e /var/named-bak ] && cp -a /var/named-bak/. ${STATEDIR}/named
+  [ -e /var/bind ]      && cp -a /var/bind/.      ${STATEDIR}/named
+  chown $NAMED_USER:$NAMED_GROUP ${STATEDIR}/named
+
   append_run_options
 
   mkdir -p /var/named
@@ -377,6 +411,10 @@ provision_bind() {
   SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
 
+  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
+  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
+  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
+
   sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \
       -e "s:\$DNS_FORWARDERS:$FORWARDERS:" \
       -e "s:\$BINDDNS_DIR:${BINDDNS_DIR}:" \
@@ -399,5 +437,12 @@ provision_bind() {
     [ "$ID" = "ubuntu" ] && NAMEDROOT="/etc/bind/db.root"
     cp -a $NAMEDROOT /var/named/named.root
   fi
+
+  # Make sure the krb5 config is readable by named.
+  # This file gets copied to /etc on startup (Step 8).
+  chown root:$NAMED_GROUP $PRIVATE_DIR/krb5.conf
+
+  # Note: samba-tool join does not properly set ownership for ${BINDDNS_DIR}.
+  chown root:$NAMED_GROUP ${BINDDNS_DIR}
 }
 
