@@ -24,7 +24,7 @@ while : ; do
   cmd="$(cat $cmdfile 2>/dev/null || true)"
   if [ -n "$cmd" ]; then
     echo "Received $cmd command."                         >>$logfile
-    echo "Status is $(cat /var/lib/samba/samba-status)."  >>$logfile
+    echo "Status is $(cat /var/lib/samba/samba-status 2>/dev/null || true)."  >>$logfile
   fi
   case $cmd in
   start)
