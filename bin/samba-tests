@@ -77,7 +77,7 @@ nsupdate_del() {
   result="$?"
   # Verify that the record was deleted.
   test="Delete $type record for $key"
-  if host -t $type $key 2>&1 >/dev/null ; then
+  if host -t $type $key >/dev/null 2>&1 ; then
     log_fail_optional "$test"
     [ "$result" = "0" ] && result="X"
   else
