@@ -79,6 +79,8 @@ provision() {
   USE_RFC2307=${USE_RFC2307:-yes}
   if [ "$ROLE" = "master" ]; then
 
+    # Provision domain.
+
     [ "${USE_RFC2307}" = "yes" ] && rfc2307="--use-rfc2307"
 
     echo "Provisioning domain '$DOMAIN'."
@@ -99,10 +101,20 @@ provision() {
 
   else
 
-    # Slave join delay to allow time for master to finish provisioning.
-    if [ -n "$SLAVE_JOIN_DELAY" ]; then
-      echo "Sleeping for $SLAVE_JOIN_DELAY seconds waiting for master to finish provisioning."
-      sleep $SLAVE_JOIN_DELAY
+    # Join Domain.
+
+    # The /var/lib/master directory should only be mounted when running system unit tests.
+    if [ -d /var/lib/master ]; then
+      # Wait for master to come up.
+      for try in $(seq -s ' ' 1 15) ; do
+        status="$(cat /var/lib/master/samba-status 2>/dev/null || true)"
+        if [ "$status" = "Running" ]; then
+          echo "Master host $MASTER_IP is up!"
+          break
+        fi
+        sleep 10;
+        echo "Waiting for host $MASTER_IP to become ready ($try)."
+      done
     fi
 
     # Create a temporary /etc/resolv.conf that points to the master for joining.
@@ -120,8 +132,10 @@ provision() {
 	__EOF__
 
     # Copy the idmap from the master.  This will be needed once the join is complete.
-    echo "Mounting sysvol //$DOMAIN/sysvol."
-    if mount -t cifs -o user=Administrator,pass=$PASSWORD //$DOMAIN/sysvol /mnt 2>/dev/null ; then
+    mast="$(host $MASTER_IP $MASTER_IP | grep "name pointer" | sed 's/^.*pointer //' | cut -d '.' -f 1)"
+    mname="$(echo $mast | cut -d '.' -f 1)"
+    echo "Mounting sysvol //${mname}.$DOMAIN/sysvol."
+    if mount -t cifs -o user=Administrator,pass=$PASSWORD //${mname}.$DOMAIN/sysvol /mnt 2>/dev/null ; then
       if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
         echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
       else

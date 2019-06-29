@@ -30,6 +30,9 @@ fixup_backend_config() {
 
 # Start
 
+# Indicates to system unit test that the server is starting.
+echo "Starting" > /var/lib/samba/samba-status
+
 # Utils provide start_service and restart functions.
 . samba-utils
 
@@ -147,6 +150,10 @@ if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
   test_samba
   test_stats
 fi
+
+# Indicates to system unit test that the server is ready.
+echo "Setting status to running." >>/var/lib/samba/samba-startup.log
+echo "Running" > /var/lib/samba/samba-status
 
 exit 0
 
