@@ -10,7 +10,7 @@ set_or_append_option() {
 
   # Set or append an option value in a config file.
 
-  if grep "${2}=" $1 2>&1 >/dev/null ; then
+  if grep "${2}=" $1 >/dev/null 2>&1 ; then
     # Replace existing option in file.
     sed -i "s@.*${2}=.*@${2}=\"$3\"@" $1
   else
@@ -29,9 +29,6 @@ set_service_options() {
     set_or_append_option /etc/sysconfig/samba SAMBAOPTIONS   "$SAMBAOPTIONS"
     set_or_append_option /etc/sysconfig/named OPTIONS        "$NAMEDOPTIONS"
     set_or_append_option /etc/sysconfig/named KRB5RCACHETYPE "none"
-    # This prevents a spurious error message in the logs when running in fedora.
-    mkdir -p /etc/rc.d/init.d
-    touch /etc/rc.d/init.d/functions
     ;;
   ubuntu)
     set_or_append_option /etc/default/samba   SAMBAOPTIONS   "$SAMBAOPTIONS"
@@ -160,25 +157,24 @@ BIND_GROUP="$(id $BIND_USER -gn)"
 [ -r /var/lib/samba/samba-vars ] && . /var/lib/samba/samba-vars 
 
 # Determine if running under init system (systemd or openRC).
-INITPROC="/sbin/init"
-[ "$ID" = "ubuntu" ] && INITPROC="/lib/systemd/systemd"
-if [ -n "$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])' | grep $INITPROC)" ]; then
+INITPROC="$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])')"
+SYSINIT="false"
+[ -n "$(echo $INITPROC | grep /sbin/init )" ] && SYSINIT="true"
+[ -n "$(echo $INITPROC | grep /lib/systemd/systemd )" ] && SYSINIT="true"
+if [ "$SYSINIT" = "true" ]; then
   echo "Running under systemd or openRC."
-  SYSINIT="true"
   # Running under init process so the config files must be updated with the proper settings.
   set_service_options
 else
   echo "Running without systemd or openRC."
-  SYSINIT="false"
   # Fedora named needs this export.
   [ "$ID" = "fedora" ] && export KRB5RCACHETYPE="none"
-  # Fedora uses /run for samba.pid, Ubuntu and Alpine use /run/samba.
-  [ "$ID" = "ubuntu" -o "$ID" = "alpine" ] && mkdir -p /run/samba
+  # winbindd needs this when running without init system.
+  mkdir -p /run/samba/winbindd
+  # Create named run directory and set proper ownership.
+  mkdir -p /run/named
+  chown $BIND_USER:$BIND_GROUP /run/named
 fi
-
-# All distro's use /run/named for named.pid, so create named run directory and set proper ownership.
-mkdir -p /run/named
-chown $BIND_USER:$BIND_GROUP /run/named
 
 # Determine the dns backend (SAMBA_INTERNAL or BIND9_DLZ).
 BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || :)"
