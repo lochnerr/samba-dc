@@ -61,7 +61,7 @@ RUN apt-get -y update \
 VOLUME /var/lib/samba
 
 # Use systemd init to bring up services.
-CMD [ "/sbin/init" ]
+CMD [ "/lib/systemd/systemd" ]
 
 # Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
@@ -69,21 +69,9 @@ COPY bin/. /usr/local/bin/
 # Copy the systemd samba service.
 COPY samba-ad-dc.service /etc/systemd/system/samba-runner.service
 
-# Enable the systemd samba service and disable other unnecessary services.
-RUN rm /etc/systemd/system/multi-user.target.wants/cron.service \
- && rm /etc/systemd/system/multi-user.target.wants/bind9.service \
- && rm /etc/systemd/system/multi-user.target.wants/networkd-dispatcher.service \
- && rm /etc/systemd/system/multi-user.target.wants/nmbd.service \
- && rm /etc/systemd/system/multi-user.target.wants/ondemand.service \
- && rm /etc/systemd/system/multi-user.target.wants/remote-fs.target \
- && rm /etc/systemd/system/multi-user.target.wants/smbd.service \
- && rm /lib/systemd/system/multi-user.target.wants/systemd-logind.service \
- && rm /etc/systemd/system/multi-user.target.wants/systemd-resolved.service \
- && rm /etc/systemd/system/multi-user.target.wants/winbind.service \
- && rm /lib/systemd/system/multi-user.target.wants/dbus.service \
- && rm /lib/systemd/system/sockets.target.wants/dbus.socket \
- && rm /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service \
- && ln -s /etc/systemd/system/samba-runner.service /lib/systemd/system/multi-user.target.wants/samba-runner.service
+# Do one-time samba configuration.
+RUN . /usr/local/bin/samba-configure \
+ && samba_configure
 
 # Set systemd stop signal.
 STOPSIGNAL SIGRTMIN+3

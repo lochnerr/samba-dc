@@ -64,8 +64,9 @@ COPY bin/. /usr/local/bin/
 # Copy the systemd samba service.
 COPY samba-ad-dc.service /usr/lib/systemd/system/
 
-# Enable the systemd samba service.
-RUN systemctl enable samba-ad-dc.service
+# Do one-time samba configuration.
+RUN . /usr/local/bin/samba-configure \
+ && samba_configure
 
 # Set systemd stop signal.
 STOPSIGNAL SIGRTMIN+3

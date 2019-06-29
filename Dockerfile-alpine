@@ -81,14 +81,12 @@ COPY bin/. /usr/local/bin/
 COPY samba-ad-dc /etc/init.d/
 COPY alpine-syslog /etc/init.d/syslog
 
+# Do one-time samba configuration.
+RUN . /usr/local/bin/samba-configure \
+ && samba_configure
+
 # Set systemd stop signal.
 STOPSIGNAL TERM
-
-# Enable the samba service and disable other unnecessary services.
-RUN sed -i 's/^tty/#tty/' /etc/inittab \
- && sed -i 's/#daemon_list="samba"/daemon_list="samba"/' /etc/conf.d/samba \
- && ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/syslog \
- && ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/samba-ad-dc
 
 # Set the build labels.
 # Do this last to allow build cacheing during development.
