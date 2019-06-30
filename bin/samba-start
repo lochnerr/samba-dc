@@ -150,7 +150,7 @@ if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
 fi
 
 # Indicates to system unit test that the server is ready.
-echo "Setting status to running." >>/var/lib/samba/samba-startup.log
+echo "Setting status to Running." >>/var/lib/samba/samba-startup.log
 echo "Running" > /var/lib/samba/samba-status
 
 exit 0

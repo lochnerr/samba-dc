@@ -210,7 +210,11 @@ test_samba() {
   fi
 
   # Verify nsupdate works with dhcpduser.
-  test_nsupdate
+  if [ -e $STATEDIR/dhcpduser.keytab ]; then
+    test_nsupdate
+  else
+    echo "Warning: $STATEDIR/dhcpduser.keytab does not exist, cannot run nsupdate tests!"
+  fi
 }
 
 test_stats() {
