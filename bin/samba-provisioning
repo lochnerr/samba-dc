@@ -132,14 +132,13 @@ provision() {
 	__EOF__
 
     # Copy the idmap from the master.  This will be needed once the join is complete.
-    mast="$(host $MASTER_IP $MASTER_IP | grep "name pointer" | sed 's/^.*pointer //' | cut -d '.' -f 1)"
-    mname="$(echo $mast | cut -d '.' -f 1)"
-    echo "Mounting sysvol //${mname}.$DOMAIN/sysvol."
-    if mount -t cifs -o user=Administrator,pass=$PASSWORD //${mname}.$DOMAIN/sysvol /mnt 2>/dev/null ; then
+    mast="$(host $MASTER_IP $MASTER_IP | grep 'name pointer' | sed 's/^.*pointer //' | cut -d '.' -f 1)"
+    echo "Mounting sysvol //${mast}.$DOMAIN/sysvol."
+    if mount -t cifs -o user=Administrator,pass=$PASSWORD //${mast}.$DOMAIN/sysvol /mnt 2>/dev/null ; then
       if [ ! -e /mnt/provision/idmap.ldb.bak ]; then
         echo "Warning: Unable to restore idmap.ldb from master sysvol, continuing anyway!"
       else
-        echo "//$DOMAIN/sysvol mounted successfully."
+        echo "//${mast}.$DOMAIN/sysvol mounted successfully."
         cp -a /mnt/provision/idmap.ldb.bak /tmp
       fi
       umount /mnt
@@ -327,10 +326,12 @@ post_provisioning() {
   RUN_TESTS="true"
 
   # Export the dhcpd user keytab.
-  samba-tool domain exportkeytab --principal=dhcpduser@$REALM $STATEDIR/dhcpduser.keytab
-
-  # Change permissions on the dhcpduser keytab.
-  chmod 600 $STATEDIR/dhcpduser.keytab
+  if samba-tool domain exportkeytab --principal=dhcpduser@$REALM $STATEDIR/dhcpduser.keytab ; then
+    # Change permissions on the dhcpduser keytab.
+    chmod 600 $STATEDIR/dhcpduser.keytab
+  else
+    echo "Warning: exportkeytab for dhcpduser failed, continuing anyway!"
+  fi
 
   # DNS update test.
   echo "$PASSWORD" | if ! kinit Administrator ; then
@@ -450,7 +451,7 @@ provision_bind() {
     NAMEDROOT="/var/bind/named.ca"
     [ "$ID" = "fedora" ] && NAMEDROOT="/var/named/named.ca"
     [ "$ID" = "ubuntu" ] && NAMEDROOT="/etc/bind/db.root"
-    cp $NAMEDROOT /var/named/named.root
+    cp -p $NAMEDROOT /var/named/named.root
   fi
 
   # Make sure the krb5 config is readable by named.
