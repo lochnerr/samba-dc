@@ -10,9 +10,9 @@ set_or_append_option() {
 
   # Set or append an option value in a config file.
 
-  if grep "${2}=" $1 >/dev/null 2>&1 ; then
+  if grep "^[[:space:]]*${2}[[:space:]]*=" $1 >/dev/null 2>&1 ; then
     # Replace existing option in file.
-    sed -i "s@.*${2}=.*@${2}=\"$3\"@" $1
+    sed -i "s@\(^[[:space:]]*${2}[[:space:]]*=[[:space:]]*\)\(.*\)@\1\"$3\"@" $1
   else
     # Append missing option to file.
     echo "${2}=\"$3\"" >>$1
