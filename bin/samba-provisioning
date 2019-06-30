@@ -403,7 +403,7 @@ provision_bind() {
 
   if [ ! -e /var/named/rndc.key ]; then
     echo "Generating rndc.key:"
-    if /usr/sbin/rndc-confgen -a -A hmac-sha256 -r /dev/urandom 2>&1 ; then
+    if /usr/sbin/rndc-confgen -a -A hmac-sha256 2>&1 ; then
       [ -e /etc/rndc.key ]      && cp -a /etc/rndc.key      /var/named/
       [ -e /etc/bind/rndc.key ] && cp -a /etc/bind/rndc.key /var/named/
       echo "Successfully created rndc.key file."
@@ -445,11 +445,12 @@ provision_bind() {
   chmod 640 /var/named/master/*.zone
 
   # Create the named.root file from the distro file, if it does not exist.
-  if [ ! -e /var/named/named.root ]; then
+  if [ ! -r /var/named/named.root ]; then
+    [ -L /var/named/named.root ] && rm -f /var/named/named.root
     NAMEDROOT="/var/bind/named.ca"
     [ "$ID" = "fedora" ] && NAMEDROOT="/var/named/named.ca"
     [ "$ID" = "ubuntu" ] && NAMEDROOT="/etc/bind/db.root"
-    cp -a $NAMEDROOT /var/named/named.root
+    cp $NAMEDROOT /var/named/named.root
   fi
 
   # Make sure the krb5 config is readable by named.

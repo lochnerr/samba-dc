@@ -41,8 +41,6 @@ if [ -e /sbin/apk ]; then
     echo "Starting busybox syslog in Alpine."
     syslogd
   fi
-  echo "Forcing backend to SAMBA_INTERNAL for Alpine Linux."
-  BACKEND="SAMBA_INTERNAL"
 fi
 
 . samba-set-vars

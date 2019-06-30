@@ -47,6 +47,12 @@ set_service_options() {
 
 start_service() {
 
+  if [ "$ID" = "alpine" ] && [ "$1" = "named" ]; then
+    # Alpine does not set the dlz shared library, so do it now.
+    sed -i 's:\(#\ \)\(.*9_12.*\):\2:' /var/lib/samba/bind-dns/named.conf
+  fi
+
+  svc="$1"
   if [ "$SYSINIT" = "true" ]; then
     echo "Starting $1 service."
     if [ "$ID" = "alpine" ]; then
@@ -56,16 +62,15 @@ start_service() {
         [ "$1" = "samba" ] && svc="samba-ad-dc"
         [ "$1" = "named" ] && svc="bind9"
       fi 
-      systemctl start ${svc:-$1}
+      systemctl start ${svc}
     fi
   else
     echo "Starting $1 process."
     opts="" 
     [ "$1" = "samba" ] && opts="--no-process-group $SAMBAOPTIONS"
     [ "$1" = "named" ] && opts="-u $BIND_USER $NAMEDOPTIONS"
-    # Temporary code for Alpine testing.
-    [ "$ID" = "alpine" -a "$1" = "named" ] && svc="/usr/bin/valgrind --trace-children=yes --log-file=/root/named-vg.txt $1"
-    if ! ${svc:-$1} $opts ; then
+    echo "Executing: ${svc} $opts"
+    if ! ${svc} $opts ; then
       echo "Error: $1 process failed to start."
     fi
   fi
@@ -73,6 +78,7 @@ start_service() {
 
 stop_service() {
 
+  svc="$1"
   if [ "$SYSINIT" = "true" ]; then
     echo "Stopping $1 service."
     if [ "$ID" = "alpine" ]; then
@@ -82,7 +88,7 @@ stop_service() {
         [ "$1" = "samba" ] && svc="samba-ad-dc"
         [ "$1" = "named" ] && svc="bind9"
       fi
-      systemctl stop ${svc:-$1} || :
+      systemctl stop ${svc} || :
     fi
   else
     pidfile="/run/$1/$1.pid"

@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.10
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -10,6 +10,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 
 # Manditory packages:
 # samba-dc - the samba domain controller
+# py3-dnspython - needed by samba_upgradedns (as of alpine:3.10).
 # krb5 - required by samba.
 # bind - named (required to use the BIND9_DLZ backend)
 # bind-tools - host (used in provisioning and automated tests)
@@ -21,13 +22,13 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
 # bash - needed by start scripts.
 # openrc - openrc init system.
-# Added valgrind for debugging BIND9_DLZ crash.
 
 # Useful packages for debugging:
 # nmap - nmap
 
 RUN apk add --update  --no-cache \
         samba-dc \
+        py3-dnspython \
         krb5 \
         bind \
         bind-tools \
@@ -39,7 +40,6 @@ RUN apk add --update  --no-cache \
         util-linux \
         bash \
         openrc \
-        valgrind \
         nmap 
 
 # The persistent volume for samba and named.
