@@ -197,7 +197,7 @@ provision() {
 	search $DOMAIN
 	nameserver ${HOST_IP}
 	__EOF__
-  cp -a /etc/hosts $PRIVATE_DIR/
+  cp -a /etc/resolv.conf $PRIVATE_DIR/
 }
 
 dns_add() {
