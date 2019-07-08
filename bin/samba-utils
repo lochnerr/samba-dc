@@ -127,7 +127,7 @@ shutdown() {
 
   stop
   # If running in init send kill signal to init process.
-  if [ "$SYSINIT" = "true" ]; then
+  if [ "$SYSINIT" = "true" ] && [ "$CONTAINER" = "true" ] ; then
     [ "$ID"  = "alpine" ] && initsys="OpenRC"
     echo "Sending kill signal to ${initsys:-systemd}." >>/var/lib/samba/samba-startup.log
     sleep 2s
@@ -141,6 +141,10 @@ shutdown() {
 
 # Get ID var.
 . /etc/os-release
+
+# If not container proc 1 cgroups will all be root level (i.e. not followed by another /).
+CONTAINER="true"
+[ -n "$(cat /proc/1/cgroup | cut -d ':' -f 3 | grep ^/[^/]*$ || :)" ] && CONTAINER="false"
 
 # Determine the bind user and group.
 BIND_USER="named"
