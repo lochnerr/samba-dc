@@ -47,9 +47,10 @@ set_samba_vars() {
   # If the workgroup has not been set, use the first node of the REALM, e.g. AD from AD.EXAMPLE.COM.
   WORKGROUP="${WORKGROUP:-$(echo $REALM | cut -d '.' -f 1)}"
   HOST_IP="${HOST_IP:-$(ip route get 8.8.8.8 | awk -F'src ' 'NR==1{split($2,a," ");print a[1]}')}"
+  HOST_IFACE="${HOST_IFACE:-$(ip route get 8.8.8.8 | awk -F'dev ' 'NR==1{split($2,a," ");print a[1]}')}"
 
   BIND_INTERFACES_ONLY="${BIND_INTERFACES_ONLY:-yes}"
-  INTERFACES="${INTERFACES:-lo eth0}"
+  [ -z "$INTERFACES" ] && INTERFACES="lo ${HOST_IFACE:-eth0}"
   USE_RFC2307=${USE_RFC2307:-yes}
   BACKEND="$(echo ${BACKEND:-BIND9_DLZ} | tr 'a-z' 'A-Z')"
   # If the backend is not BIND9_DLZ, it must be SAMBA_INTERNAL.
