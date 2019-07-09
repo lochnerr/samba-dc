@@ -5,8 +5,8 @@
 # Source the start/stop/restart/shutdown functions.
 . samba-utils
 
-logfile="/var/lib/samba/samba-startup.log"
-cmdfile="/var/lib/samba/cmd"
+logfile="$STATEDIR/samba-startup.log"
+cmdfile="$STATEDIR/cmd"
 
 echo "***** Processes *****" >>$logfile
 ps aux | grep -v "ps aux"    >>$logfile
@@ -24,7 +24,7 @@ while : ; do
   cmd="$(cat $cmdfile 2>/dev/null || true)"
   if [ -n "$cmd" ]; then
     echo "Received $cmd command."                         >>$logfile
-    echo "Status is $(cat /var/lib/samba/samba-status 2>/dev/null || true)."  >>$logfile
+    echo "Status is $(cat $STATEDIR/samba-status 2>/dev/null || true)."  >>$logfile
   fi
   case $cmd in
   start)

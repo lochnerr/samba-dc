@@ -97,7 +97,7 @@ provision() {
       ${rfc2307}
 
     # Record the provisioned backend.
-    echo "$BACKEND" >/var/lib/samba/backend
+    echo "$BACKEND" >$STATEDIR/backend
 
   else
 
@@ -169,7 +169,7 @@ provision() {
       --option="idmap_ldb:use rfc2307 = ${USE_RFC2307}"
 
     # Record the provisioned backend.
-    echo "SAMBA_INTERNAL" >/var/lib/samba/backend
+    echo "SAMBA_INTERNAL" >$STATEDIR/backend
   fi
 
   # If not master, copy the idmap saved above.
@@ -370,7 +370,7 @@ append_run_options() {
     ;;
   esac
 
-  cat >>/var/lib/samba/samba-vars <<-__EOF__
+  cat >>$STATEDIR/samba-vars <<-__EOF__
 
 	# Startup options for samba.
 	SAMBAOPTIONS="$SAMBAOPTIONS"
@@ -383,6 +383,8 @@ append_run_options() {
 provision_bind() {
 
   echo "Bind Version:  $(named -v)"
+
+  . samba-get-paths
 
   # Determine the named user (Linux distros use different ones).
   NAMED_USER="named"
@@ -425,10 +427,6 @@ provision_bind() {
 
   SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
-
-  BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk -F ' ' '{ print $2 }')"
-  # Some older versions of smbd do not define a BINDDNS_DIR path, so use PRIVATE_DIR instead.
-  [ -z "${BINDDNS_DIR}" ] && BINDDNS_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
 
   sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \
       -e "s:\$DNS_FORWARDERS:$FORWARDERS:" \

@@ -49,7 +49,7 @@ start_service() {
 
   if [ "$ID" = "alpine" ] && [ "$1" = "named" ]; then
     # Alpine does not set the dlz shared library, so do it now.
-    sed -i 's:\(#\ \)\(.*9_12.*\):\2:' /var/lib/samba/bind-dns/named.conf
+    sed -i 's:\(#\ \)\(.*9_12.*\):\2:' $BINDDNS_DIR/named.conf
   fi
 
   svc="$1"
@@ -129,18 +129,21 @@ shutdown() {
   # If running in init send kill signal to init process.
   if [ "$SYSINIT" = "true" ] && [ "$CONTAINER" = "true" ] ; then
     [ "$ID"  = "alpine" ] && initsys="OpenRC"
-    echo "Sending kill signal to ${initsys:-systemd}." >>/var/lib/samba/samba-startup.log
+    echo "Sending kill signal to ${initsys:-systemd}." >>$STATEDIR/samba-startup.log
     sleep 2s
     sig="RTMIN+3"
     [ "$ID"  = "alpine" ] && sig="INT"
     kill -s $sig 1
   fi
-  echo "Shutdown complete." >>/var/lib/samba/samba-startup.log
+  echo "Shutdown complete." >>$STATEDIR/samba-startup.log
   exit 0
 }
 
 # Get ID var.
 . /etc/os-release
+
+# Get samba directory paths.
+. samba-get-paths
 
 # If not container proc 1 cgroups will all be root level (i.e. not followed by another /).
 CONTAINER="true"
@@ -152,7 +155,7 @@ BIND_USER="named"
 BIND_GROUP="$(id $BIND_USER -gn)"
 
 # Load persistent user settings ($SAMBAOPTIONS and $NAMEDOPTIONS).
-[ -r /var/lib/samba/samba-vars ] && . /var/lib/samba/samba-vars 
+[ -r $STATEDIR/samba-vars ] && . $STATEDIR/samba-vars 
 
 # Determine if running under init system (systemd or openRC).
 INITPROC="$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])')"
@@ -175,5 +178,5 @@ else
 fi
 
 # Determine the dns backend (SAMBA_INTERNAL or BIND9_DLZ).
-BACKEND="$(cat /var/lib/samba/backend 2>/dev/null || :)"
+BACKEND="$(cat $STATEDIR/backend 2>/dev/null || :)"
 

@@ -4,9 +4,10 @@
 
 set_samba_vars() {
 
-  # Source samba vars from well-known locations.
+  . samba-get-paths
 
-  [ -e /var/lib/samba/samba-vars ]          && . /var/lib/samba/samba-vars
+  # Source samba vars from well-known location.
+  [ -e $STATEDIR/samba-vars ] && . $STATEDIR/samba-vars
 
   # Automated testing setup.
   hname="$(hostname -s)"
@@ -57,11 +58,6 @@ set_samba_vars() {
   PASSWORD="${PASSWORD:-Passw0rd}"
   SLAVE_JOIN_DELAY="${SLAVE_JOIN_DELAY:-40}"
 
-  LOGFILEBASE="$(smbd -b | grep LOGFILEBASE | awk '{print $2}')"
-  CACHEDIR="$(smbd -b | grep CACHEDIR | awk '{print $2}')"
-  STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
-  PRIVATE_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
-
   cat <<-__EOF__
 	Samba Settings:
 
@@ -85,6 +81,7 @@ set_samba_vars() {
 	  CACHEDIR             = $CACHEDIR
 	  STATEDIR             = $STATEDIR
 	  PRIVATE_DIR          = $PRIVATE_DIR
+	  BINDDNS_DIR          = $BINDDNS_DIR
 	__EOF__
 
   if [ -n "$MASTER_IP" ]; then
