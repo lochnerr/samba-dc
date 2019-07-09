@@ -384,8 +384,6 @@ provision_bind() {
 
   echo "Bind Version:  $(named -v)"
 
-  . samba-get-paths
-
   # Determine the named user (Linux distros use different ones).
   NAMED_USER="named"
   [ -n "$(id bind 2>/dev/null || true)" ] && NAMED_USER="bind"
@@ -425,7 +423,7 @@ provision_bind() {
   cp -a $bindir/artifacts/*.zone              /var/named/master/
   cp -a $bindir/artifacts/named.conf.logging  /var/named/
 
-  SUBNETS=""; for n in ${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}; do SUBNETS="$SUBNETS $n;" ; done
+  SUBNETS=""; for n in ${ALLOWED_SUBNETS:-any}; do SUBNETS="$SUBNETS $n;" ; done
   FORWARDERS=""; for n in ${DNS_FORWARDERS:-8.8.8.8 8.8.4.4}; do FORWARDERS="$FORWARDERS $n;" ; done
 
   sed -e "s:\$ALLOWED_SUBNETS:$SUBNETS:" \

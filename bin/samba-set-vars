@@ -25,7 +25,7 @@ set_samba_vars() {
   fi
   DNS_FORWARDERS="${fwd:-8.8.8.8 8.8.4.4}"
 
-  ALLOWED_SUBNETS="${ALLOWED_SUBNETS:-10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}"
+  ALLOWED_SUBNETS="${ALLOWED_SUBNETS:-any}"
 
   HOST_NAME="${HOST_NAME:-$(hostname -s 2>/dev/null || true)}"
 

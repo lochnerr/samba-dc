@@ -11,13 +11,13 @@ options {
 
     # IP addresses and network ranges allowed to query the DNS server:
     allow-query {
-        127.0.0.1; $ALLOWED_SUBNETS
+        $ALLOWED_SUBNETS
     };
 
     # IP addresses and network ranges allowed to run recursive queries:
     # (Zones not served by this DNS server)
     allow-recursion {
-        127.0.0.1; $ALLOWED_SUBNETS
+        $ALLOWED_SUBNETS
     };
 
     # Forward queries that can not be answered from own zones
