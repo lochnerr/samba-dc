@@ -21,20 +21,45 @@ fixup_backend_config() {
     # samba_upgradedns deletes the dns user when changing to SAMBA_INTERNAL and creates a
     # new user when upgrading to BIND9_DLZ.  So, delete obsolete keytab if upgrading to SAMBA_INTERNAL.
     # A new one will be created if the domain is upgraded later back to BIND9_DLZ.
-    if [ -e $PRIVATE_DIR/dns.keytab ]; then
+    if [ -e $BINDDNS_DIR/dns.keytab ]; then
       echo "Deleting obsolete dns.keytab file."
-      rm $PRIVATE_DIR/dns.keytab
+      rm $BINDDNS_DIR/dns.keytab
     fi
+  fi
+}
+
+fixup_named_access() {
+
+  # See: https://wiki.samba.org/index.php/BIND9_DLZ_AppArmor_and_SELinux_Integration
+  chmod 775 $BINDDNS_DIR/dns || :
+
+  # This only applies when not running in a container and with SELinux.
+  # Samba creates these files with the wrong SELinux labels so they
+  # must be corrected.
+
+  # If SELinux is installed, do selinux fixups for named.
+  if command -v sestatus >/dev/null 2>&1 ; then
+    echo "Fixing SELinux labels for named."
+
+    chcon -t named_conf_t        $BINDDNS_DIR/dns.keytab  || :
+    chcon -t named_conf_t        $BINDDNS_DIR/named.conf  || :
+    chcon -R -t named_cache_t    $BINDDNS_DIR/dns         || :
+
+    chcon -t named_conf_t        /var/named/named.conf.logging  || :
+    chcon -t named_conf_t        /var/named/named.root          || :
+    chcon -R -t named_zone_t     /var/named/master              || :
+
+    SELINUX_LABELS_NEEDED="true"
   fi
 }
 
 # Start
 
-# Indicates to system unit test that the server is starting.
-echo "Starting" > /var/lib/samba/samba-status
-
 # Utils provide start_service and restart functions.
 . samba-utils
+
+# Indicates to system unit test that the server is starting.
+echo "Starting" > $STATEDIR/samba-status
 
 if [ -e /sbin/apk ]; then
   if [ "$SYSINIT" != "true" ]; then
@@ -82,6 +107,7 @@ if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
   # This will allow switching to BIND9_DLZ at a later time.
   provision_bind
   PROVISIONED="true"
+  [ "$BACKEND" = "BIND9_DLZ" ] && fixup_named_access
 fi
 
 # Step 8 (Out of order from docs): Configuring Kerberos
@@ -92,11 +118,12 @@ cp -a $PRIVATE_DIR/krb5.conf /etc/
 # Step 5: Setting up the AD DNS back end
 
 # If the dns backend has changed, a samba dns upgrade is required.
-if [ "$BACKEND" != "$(cat /var/lib/samba/backend  || true)" ]; then
+if [ "$BACKEND" != "$(cat $STATEDIR/backend  || :)" ]; then
   echo "DNS backend changed to: ${BACKEND}."
   fixup_backend_config
   samba_upgradedns --dns-backend=$BACKEND
-  echo "$BACKEND" >/var/lib/samba/backend
+  echo "$BACKEND" >$STATEDIR/backend
+  [ "$BACKEND" = "BIND9_DLZ" ] && fixup_named_access
 fi
 
 # If using bind backend, start bind.
@@ -129,6 +156,14 @@ fi
 
 start_service samba
 
+# This only applies when not running as a container and with SELinux.
+if [ "$SELINUX_LABELS_NEEDED" = "true" ]; then
+  # Ensure that samba has time to create the $BINDDNS_DIR/named.conf.update file.
+  sleep 5s
+  echo "Fixing named.conf.update labels."
+  chcon -t named_conf_t    $BINDDNS_DIR/named.conf.update || :
+fi
+
 # Step 7: Create a reverse zone --- This is done in post-provisioning.
 if [ "$PROVISIONED" = "true" ]; then
   # Wait for samba to fully start.
@@ -149,9 +184,16 @@ if [ "$(echo $RUN_TESTS | tr [a-z] [A-Z])" = "TRUE" ]; then
   test_stats
 fi
 
+# If ausearch command is available must be running with SELinux so search for AVC denials.
+if command -v ausearch >/dev/null 2>&1 ; then
+  echo "Start of SELinux denial messages."
+  ausearch -m AVC,USER_AVC -ts recent | grep -i denied || :
+  echo "End of SELinux denial messages."
+fi
+
 # Indicates to system unit test that the server is ready.
-echo "Setting status to Running." >>/var/lib/samba/samba-startup.log
-echo "Running" > /var/lib/samba/samba-status
+echo "Setting status to Running." >>$STATEDIR/samba-startup.log
+echo "Running" >$STATEDIR/samba-status
 
 exit 0
 

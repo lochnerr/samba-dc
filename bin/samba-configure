@@ -2,46 +2,111 @@
 
 # samba-configure: Build time configuration for samba-dc.
 
+install_packages_fedora() {
+
+  dnf -y upgrade
+  dnf -y install --nodocs \
+        samba-dc \
+        samba-client \
+        samba-winbind \
+        samba-dc-bind-dlz \
+        krb5-workstation \
+        bind \
+        bind-utils \
+        iproute \
+        tdb-tools \
+        cifs-utils \
+        procps-ng \
+        wget \
+        hostname \
+        iputils \
+        net-tools \
+        nmap \
+        findutils \
+        traceroute
+  dnf -y clean all
+}
+
+install_packages_ubuntu() {
+
+  apt-get -y update
+
+  DEBIAN_FRONTEND=noninteractive apt-get -y install \
+        samba \
+        smbclient \
+        krb5-config \
+        krb5-user \
+        winbind \
+        libpam-winbind \
+        libnss-winbind \
+        libpam-krb5 \
+        bind9 \
+        bind9utils \
+        dnsutils \
+        iproute2 \
+        tdb-tools \
+        cifs-utils \
+        wget \
+        net-tools \
+        tzdata \
+        iputils-ping \
+        vim \
+        inetutils-traceroute \
+        nmap \
+        systemd \
+        apparmor-utils
+}
+
+install_packages_alpine() {
+
+  # Enable additional repos (all but testing).
+  sed -i "s@\(^[[:space:]]*\)\(#\)\([[:space:]]*http.*/main$\)@\1\3@"       /etc/apk/repositories
+  sed -i "s@\(^[[:space:]]*\)\(#\)\([[:space:]]*http.*/community$\)@\1\3@"  /etc/apk/repositories
+
+  apk add --update  --no-cache \
+        samba-dc \
+        py3-dnspython \
+        krb5 \
+        bind \
+        bind-tools \
+        iproute2 \
+        tdb \
+        cifs-utils \
+        net-tools \
+        tzdata \
+        util-linux \
+        bash \
+        openrc \
+        nmap 
+}
+
+disable_service() {
+
+  systemctl disable $1 || :
+  systemctl stop $1 || :
+}
+
 samba_configure() {
 
   . /etc/os-release
 
-  case $ID in
-  fedora)
-    # Enable the systemd samba service.
-    systemctl enable samba-ad-dc.service
-    # This prevents a spurious error message in the logs when running in fedora.
-    mkdir -p /etc/rc.d/init.d
-    touch /etc/rc.d/init.d/functions
-    ;;
-  ubuntu)
-    rm /etc/systemd/system/multi-user.target.wants/cron.service
-    rm /etc/systemd/system/multi-user.target.wants/bind9.service
-    rm /etc/systemd/system/multi-user.target.wants/networkd-dispatcher.service
-    rm /etc/systemd/system/multi-user.target.wants/nmbd.service
-    rm /etc/systemd/system/multi-user.target.wants/ondemand.service
-    rm /etc/systemd/system/multi-user.target.wants/remote-fs.target
-    rm /etc/systemd/system/multi-user.target.wants/smbd.service
-    rm /lib/systemd/system/multi-user.target.wants/systemd-logind.service
-    rm /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
-    rm /etc/systemd/system/multi-user.target.wants/winbind.service
-    rm /lib/systemd/system/multi-user.target.wants/dbus.service
-    rm /lib/systemd/system/sockets.target.wants/dbus.socket
-    rm /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
-    ln -s /etc/systemd/system/samba-runner.service /lib/systemd/system/multi-user.target.wants/samba-runner.service
-    ;;
-  alpine)
-    # Enable the samba service and disable other unnecessary services.
-    sed -i 's/^tty/#tty/' /etc/inittab
-    sed -i 's/#daemon_list="samba"/daemon_list="samba"/' /etc/conf.d/samba
-    ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/syslog
-    ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/samba-ad-dc
-    ;;
-  esac
+  # If not container proc 1 cgroups will all be root level (i.e. not followed by another /).
+  CONTAINER="true"
+  [ -n "$(cat /proc/1/cgroup | cut -d ':' -f 3 | grep ^/[^/]*$ || :)" ] && CONTAINER="false"
+  [ "$ID" = "alpine" ] && [ ! -f /.dockerenv ] && CONTAINER="false"
+
+  if [ "$CONTAINER" = "false" ]; then
+    # Copy the script files and other artifacts.
+    cp -a bin/. /usr/local/bin/
+    [ "$ID" = "fedora" ] && install_packages_fedora
+    [ "$ID" = "ubuntu" ] && install_packages_ubuntu
+    [ "$ID" = "alpine" ] && install_packages_alpine
+  fi
 
   # Link /etc/samba to the persistent config directory.
 
-  STATEDIR="/var/lib/samba"
+  . samba-get-paths
+
   echo "Linking /etc/samba to the persistent config directory."
   [ -d /etc/samba ] && mv /etc/samba /etc/samba-bak
   ln -s ${STATEDIR}/config /etc/samba
@@ -49,5 +114,137 @@ samba_configure() {
   echo "Linking /var/named to the persistent directory."
   [ -d /var/named ] && mv /var/named /var/named-bak
   ln -s ${STATEDIR}/named /var/named
+
+  case $ID in
+  fedora)
+    if [ "$CONTAINER" = "false" ]; then
+      echo "Native (non-container) setup for Fedora."
+
+      # Copy the systemd samba service.
+      cp -a samba-ad-dc.service /usr/lib/systemd/system/
+
+      # Disable unnecessary service(s).
+      disable_service systemd-resolved
+
+      # Label files (SELinux):
+      chcon -t systemd_unit_file_t -u system_u         /usr/lib/systemd/system/samba-ad-dc.service
+      chcon -t bin_t                                   /usr/local/bin/samba-run
+
+      # Set Label Persistence (SELinux):
+      semanage fcontext -a -t systemd_unit_file_t      /usr/lib/systemd/system/samba-ad-dc.service
+      semanage fcontext -a -t bin_t                    /usr/local/bin/samba-run
+
+      semanage fcontext -a -t named_conf_t             /var/named/named.conf.logging
+      semanage fcontext -a -t named_conf_t             /var/named/named.root
+      semanage fcontext -a -t named_conf_t             /var/named/master
+
+      semanage fcontext -a -t named_conf_t             $BINDDNS_DIR/dns.keytab
+      semanage fcontext -a -t named_conf_t             $BINDDNS_DIR/named.conf
+      semanage fcontext -a -t named_conf_t             $BINDDNS_DIR/named.conf.update
+      semanage fcontext -a -t named_cache_t            $BINDDNS_DIR/dns
+
+      # Get rid of the link created by systemd-resolved service.
+      [ -L /etc/resolv.conf ] && rm -f /etc/resolv.conf || true
+
+      # This is required for named to "memory map" files.
+      setsebool  domain_can_mmap_files 1
+
+      # Disable SELinux for provisioning.
+      setenforce 0
+    fi
+
+    # This prevents a spurious error message in the logs when running in fedora.
+    mkdir -p /etc/rc.d/init.d
+    touch /etc/rc.d/init.d/functions
+
+    # Enable the systemd samba service.
+    systemctl enable samba-ad-dc.service
+    ;;
+  ubuntu)
+    if [ "$CONTAINER" = "false" ]; then
+      echo "Native (non-container) setup for Ubuntu."
+
+      # Copy the systemd samba service.
+      cp -a samba-ad-dc.service /etc/systemd/system/samba-runner.service
+
+      # Disable unnecessary services.
+      disable_service bind9
+      disable_service nmbd
+      disable_service smbd
+      disable_service winbind
+      disable_service systemd-resolved
+
+      # Get rid of the link created by systemd-resolved service.
+      [ -L /etc/resolv.conf ] && rm -f /etc/resolv.conf || true
+
+      # Create an apparmor config for named.
+      cat >/etc/apparmor.d/local/usr.sbin.named <<-__EOF__
+	  # Let named access the shared libs.
+	  /usr/lib/x86_64-linux-gnu/samba/** mr,
+	  /usr/lib/x86_64-linux-gnu/ldb/modules/** mr,
+
+	  # Let named access /var/named.
+	  /var/named/** rw,
+
+	  # Let named access the named files in samba.
+	  $STATEDIR/named/** rw,
+
+	  # /etc/samba/smb.conf is linked to this.
+	  $STATEDIR/config/smb.conf r, 
+
+	  # Samba DLZ and Active Directory Zones.
+	  $BINDDNS_DIR/dns.keytab rk,
+	  $BINDDNS_DIR/named.conf r,
+	  $BINDDNS_DIR/dns/** rwk,
+	__EOF__
+
+      # Reload the apparmor config for named.
+      apparmor_parser -r /etc/apparmor.d/usr.sbin.named
+
+      # Set complain mode.
+      aa-complain /usr/sbin/named
+
+      # Enable the systemd samba service.
+      systemctl enable samba-runner
+    else
+      # Disable unnecessary services.
+      rm /etc/systemd/system/multi-user.target.wants/cron.service
+      rm /etc/systemd/system/multi-user.target.wants/bind9.service
+      rm /etc/systemd/system/multi-user.target.wants/networkd-dispatcher.service
+      rm /etc/systemd/system/multi-user.target.wants/nmbd.service
+      rm /etc/systemd/system/multi-user.target.wants/ondemand.service
+      rm /etc/systemd/system/multi-user.target.wants/remote-fs.target
+      rm /etc/systemd/system/multi-user.target.wants/smbd.service
+      rm /lib/systemd/system/multi-user.target.wants/systemd-logind.service
+      rm /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
+      rm /etc/systemd/system/multi-user.target.wants/winbind.service
+      rm /lib/systemd/system/multi-user.target.wants/dbus.service
+      rm /lib/systemd/system/sockets.target.wants/dbus.socket
+      rm /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
+      # Enable the systemd samba service.
+      ln -s /etc/systemd/system/samba-runner.service /lib/systemd/system/multi-user.target.wants/samba-runner.service
+    fi
+    ;;
+  alpine)
+    if [ "$CONTAINER" = "false" ]; then
+      echo "Native (non-container) setup for Ubuntu."
+
+      # Copy the openrc samba services.
+      cp -p samba-ad-dc /etc/init.d/
+      cp -p alpine-syslog /etc/init.d/syslog
+
+      # Enable the services
+      rc-update add syslog
+      rc-update add samba-ad-dc
+    else
+      # Enable the samba service and disable other unnecessary services.
+      sed -i 's/^tty/#tty/' /etc/inittab
+      ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/syslog
+      ln -sf /etc/init.d/samba-ad-dc /etc/runlevels/default/samba-ad-dc
+    fi
+    # Fix the samba daemon list.
+    sed -i 's/#daemon_list="samba"/daemon_list="samba"/' /etc/conf.d/samba
+    ;;
+  esac
 }
 
