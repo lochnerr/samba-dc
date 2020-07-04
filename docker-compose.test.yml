@@ -15,7 +15,8 @@ services:
     volumes:
       - dc1:/var/lib/samba
     networks:
-      - testnet
+      testnet:
+        ipv4_address: 10.30.50.2
 
   test-slave:
     image: lochnerr/samba-dc:latest
@@ -27,8 +28,8 @@ services:
       - dc2:/var/lib/samba
       - dc1:/var/lib/master
     networks:
-      - testnet
-    # Ensure that the master and slave get consistent IP's on restarts.
+      testnet:
+        ipv4_address: 10.30.50.3
     depends_on:
       - test-master
 
@@ -41,7 +42,8 @@ services:
       - dc1:/var/lib/samba
       - dc2:/var/lib/slave
     networks:
-      - testnet
+      testnet:
+        ipv4_address: 10.30.50.4
     depends_on:
       - test-master
       - test-slave
@@ -52,4 +54,9 @@ volumes:
 
 networks:
   testnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.30.50.0/24
 
