@@ -22,8 +22,8 @@ set_samba_vars() {
     for addr in $(grep ^nameserver /etc/resolv.conf | grep [0-9]*[.][0-9]*[.][0-9]*[.][0-9]* | cut -d ' ' -f 2) ; do
       fwd="${fwd}$addr "
     done
+    DNS_FORWARDERS="${fwd:-8.8.8.8 8.8.4.4}"
   fi
-  DNS_FORWARDERS="${fwd:-8.8.8.8 8.8.4.4}"
 
   ALLOWED_SUBNETS="${ALLOWED_SUBNETS:-any}"
 
