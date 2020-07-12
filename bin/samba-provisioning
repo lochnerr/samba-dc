@@ -307,9 +307,9 @@ post_provisioning() {
     echo "Manually replicating directory partitions."
     part="$(echo ${DOMAIN} | awk -F '.' '{print "dc=" $1 ",dc=" $2 ",dc=" $3}')"
     mast="$(host $MASTER_IP $MASTER_IP | grep "name pointer" | sed 's/^.*pointer //' | cut -d '.' -f 1)"
-    if [ -n "$part" -a -n "$mast" ]; then
-      echo "samba-tool drs replicate $mast $HOST_NAME $part"
-      if ! samba-tool drs replicate $mast $HOST_NAME $part ; then
+    if [ -n "$part" -a -n "${mast}" ]; then
+      echo "samba-tool drs replicate ${mast} $HOST_NAME $part"
+      if ! samba-tool drs replicate ${mast} $HOST_NAME $part ; then
         echo "Replication failed, continuing anyway!"
       else
         echo "Replication succeeded!"
@@ -349,8 +349,6 @@ append_run_options() {
 
   # Append default run options to samba-vars file.
 
-  echo "Adding default samba/named run options to samba-vars file."
-
   case $ID in
   fedora)
     . /etc/sysconfig/samba
@@ -370,14 +368,21 @@ append_run_options() {
     ;;
   esac
 
-  cat >>$STATEDIR/samba-vars <<-__EOF__
-
+  if ! grep 'SAMBAOPTIONS' $STATEDIR/samba-vars >/dev/null 2>&1 ; then
+    echo "Adding default SAMBAOPTIONS run options to samba-vars file."
+    cat >>$STATEDIR/samba-vars <<-__EOF__
 	# Startup options for samba.
 	SAMBAOPTIONS="$SAMBAOPTIONS"
-	
+	__EOF__
+  fi
+
+  if ! grep 'NAMEDOPTIONS' $STATEDIR/samba-vars >/dev/null 2>&1 ; then
+    echo "Adding default NAMEDOPTIONS run options to samba-vars file."
+    cat >>$STATEDIR/samba-vars <<-__EOF__
 	# Startup options for named.
 	NAMEDOPTIONS="$NAMEDOPTIONS"
 	__EOF__
+  fi
 }
 
 provision_bind() {

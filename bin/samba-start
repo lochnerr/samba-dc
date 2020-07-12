@@ -103,10 +103,14 @@ if [ ! -f $PRIVATE_DIR/krb5.conf ]; then
   . samba-provisioning
   provision
   fixup_backend_config
+  PROVISIONED="true"
+fi
+
+if [ ! -e /var/named/named.conf ]; then
   # Create a bind config even if using SAMBA_INTERNAL backend.
   # This will allow switching to BIND9_DLZ at a later time.
+  echo "Setting up named configuration."
   provision_bind
-  PROVISIONED="true"
   [ "$BACKEND" = "BIND9_DLZ" ] && fixup_named_access
 fi
 
@@ -118,7 +122,7 @@ cp -a $PRIVATE_DIR/krb5.conf /etc/
 # Step 5: Setting up the AD DNS back end
 
 # If the dns backend has changed, a samba dns upgrade is required.
-if [ "$BACKEND" != "$(cat $STATEDIR/backend  || :)" ]; then
+if [ "$BACKEND" != "$(cat $STATEDIR/backend 2>/dev/null || :)" ]; then
   echo "DNS backend changed to: ${BACKEND}."
   fixup_backend_config
   samba_upgradedns --dns-backend=$BACKEND
