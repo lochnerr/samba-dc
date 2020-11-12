@@ -95,12 +95,19 @@ samba_configure() {
   [ -n "$(cat /proc/1/cgroup | cut -d ':' -f 3 | grep ^/[^/]*$ || :)" ] && CONTAINER="false"
   [ "$ID" = "alpine" ] && [ ! -f /.dockerenv ] && CONTAINER="false"
 
+  # SystemD way to check for container.
+  if command -v systemd-detect-virt >/dev/null 2>&1 ; then
+    systemd-detect-virt -c && CONTAINER="true"
+  fi
+
   if [ "$CONTAINER" = "false" ]; then
     # Copy the script files and other artifacts.
     cp -a bin/. /usr/local/bin/
     [ "$ID" = "fedora" ] && install_packages_fedora
     [ "$ID" = "ubuntu" ] && install_packages_ubuntu
     [ "$ID" = "alpine" ] && install_packages_alpine
+  else
+    echo "Running in container, skipping package installs."
   fi
 
   # Link /etc/samba to the persistent config directory.
@@ -151,11 +158,27 @@ samba_configure() {
 
       # Disable SELinux for provisioning.
       setenforce 0
+    else
+      # Disable unnecessary container services.
+      systemctl mask dnf-makecache.timer \
+          systemd-remount-fs.service \
+          dev-hugepages.mount \
+          sys-fs-fuse-connections.mount \
+          systemd-logind.service \
+          getty.target \
+          console-getty.service \
+          systemd-udev-trigger.service \
+          systemd-udevd.service \
+          systemd-random-seed.service \
+          systemd-machine-id-commit.service
     fi
 
     # This prevents a spurious error message in the logs when running in fedora.
     mkdir -p /etc/rc.d/init.d
     touch /etc/rc.d/init.d/functions
+
+    # Disable the dnf cache timer.
+    systemctl mask dnf-makecache.timer
 
     # Enable the systemd samba service.
     systemctl enable samba-ad-dc.service
