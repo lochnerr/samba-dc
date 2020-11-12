@@ -97,7 +97,7 @@ samba_configure() {
 
   # SystemD way to check for container.
   if command -v systemd-detect-virt >/dev/null 2>&1 ; then
-    systemd-detect-virt -c && CONTAINER="true"
+    systemd-detect-virt -c >/dev/null && CONTAINER="true"
   fi
 
   if [ "$CONTAINER" = "false" ]; then
