@@ -326,9 +326,9 @@ post_provisioning() {
   RUN_TESTS="true"
 
   # Export the dhcpd user keytab.
-  if samba-tool domain exportkeytab --principal=dhcpduser@$REALM $STATEDIR/dhcpduser.keytab ; then
+  if samba-tool domain exportkeytab --principal=dhcpduser@$REALM $PRIVATE_DIR/dhcpduser.keytab ; then
     # Change permissions on the dhcpduser keytab.
-    chmod 600 $STATEDIR/dhcpduser.keytab
+    chmod 400 $PRIVATE_DIR/dhcpduser.keytab
   else
     echo "Warning: exportkeytab for dhcpduser failed, continuing anyway!"
   fi
