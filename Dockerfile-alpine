@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM alpine:3.12
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -83,7 +83,7 @@ COPY alpine-syslog /etc/init.d/syslog
 
 # Do one-time samba configuration.
 RUN . /usr/local/bin/samba-configure \
- && samba_configure
+ && samba_configure container
 
 # Set systemd stop signal.
 STOPSIGNAL TERM

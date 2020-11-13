@@ -94,7 +94,7 @@ test_nsupdate() {
   echo "********************************************************************************************"
 
   test="Kerberos kinit for dhcpduser@${REALM}"
-  kinit -F -k -t $STATEDIR/dhcpduser.keytab "dhcpduser@${REALM}"
+  kinit -F -k -t $PRIVATE_DIR/dhcpduser.keytab "dhcpduser@${REALM}"
   if [ "$?" != "0" ]; then
     log_fail_optional "$test"
     log_warn "Unable to run nsupdate tests."
@@ -210,10 +210,10 @@ test_samba() {
   fi
 
   # Verify nsupdate works with dhcpduser.
-  if [ -e $STATEDIR/dhcpduser.keytab ]; then
+  if [ -e $PRIVATE_DIR/dhcpduser.keytab ]; then
     test_nsupdate
   else
-    echo "Warning: $STATEDIR/dhcpduser.keytab does not exist, cannot run nsupdate tests!"
+    echo "Warning: $PRIVATE_DIR/dhcpduser.keytab does not exist, cannot run nsupdate tests!"
   fi
 }
 

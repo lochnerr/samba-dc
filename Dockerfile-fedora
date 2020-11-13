@@ -68,7 +68,7 @@ COPY samba-ad-dc.service /usr/lib/systemd/system/
 
 # Do one-time samba configuration.
 RUN . /usr/local/bin/samba-configure \
- && samba_configure
+ && samba_configure container
 
 # Set systemd stop signal.
 STOPSIGNAL SIGRTMIN+3

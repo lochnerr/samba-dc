@@ -90,15 +90,9 @@ samba_configure() {
 
   . /etc/os-release
 
-  # If not container proc 1 cgroups will all be root level (i.e. not followed by another /).
-  CONTAINER="true"
-  [ -n "$(cat /proc/1/cgroup | cut -d ':' -f 3 | grep ^/[^/]*$ || :)" ] && CONTAINER="false"
-  [ "$ID" = "alpine" ] && [ ! -f /.dockerenv ] && CONTAINER="false"
-
-  # SystemD way to check for container.
-  if command -v systemd-detect-virt >/dev/null 2>&1 ; then
-    systemd-detect-virt -c >/dev/null && CONTAINER="true"
-  fi
+  CONTAINER="false"
+  # Argument 1 should be set to "container" when building container.
+  [ "$1" = "container" ] && CONTAINER="true"
 
   if [ "$CONTAINER" = "false" ]; then
     # Copy the script files and other artifacts.
@@ -107,7 +101,7 @@ samba_configure() {
     [ "$ID" = "ubuntu" ] && install_packages_ubuntu
     [ "$ID" = "alpine" ] && install_packages_alpine
   else
-    echo "Running in container, skipping package installs."
+    echo "Building container, skipping package installs."
   fi
 
   # Link /etc/samba to the persistent config directory.
@@ -250,7 +244,7 @@ samba_configure() {
     ;;
   alpine)
     if [ "$CONTAINER" = "false" ]; then
-      echo "Native (non-container) setup for Ubuntu."
+      echo "Native (non-container) setup for Alpine."
 
       # Copy the openrc samba services.
       cp -p samba-ad-dc /etc/init.d/
