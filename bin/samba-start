@@ -30,6 +30,15 @@ fixup_backend_config() {
 
 fixup_named_access() {
 
+  # Ubuntu does not enable a dlz library by default.
+  if [ -e /var/lib/samba/bind-dns/named.conf ]; then
+    # If there is no dlz library enabled, enable dlz_bind9_12.so.
+    if ! grep '^[[:space:]]*database' /var/lib/samba/bind-dns/named.conf >/dev/null 2>&1 ; then
+      echo "Enabling dlz_bind9_12.so library."
+      sed -i -e 's@\(^[[:space:]]*\)\(#[[:space:]]*\)\(database\)\(.*_12.*\)@\1\3\4 @' /var/lib/samba/bind-dns/named.conf
+    fi
+  fi
+
   # See: https://wiki.samba.org/index.php/BIND9_DLZ_AppArmor_and_SELinux_Integration
   chmod 775 $BINDDNS_DIR/dns || :
 

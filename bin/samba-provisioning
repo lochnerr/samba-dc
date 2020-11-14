@@ -357,7 +357,9 @@ append_run_options() {
     ;;
   ubuntu)
     [ -r /etc/default/samba ] && . /etc/default/samba
-    . /etc/default/bind9
+    # The bind9 service was renamed named.
+    [ -e /etc/default/bind9 ] && . /etc/default/bind9
+    [ -e /etc/default/named ] && . /etc/default/named
     NAMEDOPTIONS="$OPTIONS"
     ;;
   alpine)
@@ -451,7 +453,9 @@ provision_bind() {
     [ -L /var/named/named.root ] && rm -f /var/named/named.root
     NAMEDROOT="/var/bind/named.ca"
     [ "$ID" = "fedora" ] && NAMEDROOT="/var/named/named.ca"
-    [ "$ID" = "ubuntu" ] && NAMEDROOT="/etc/bind/db.root"
+    [ -e /etc/bind/db.root ] && NAMEDROOT="/etc/bind/db.root"
+    # Newer location for Ubuntu root hints.
+    [ -e /usr/share/dns/root.hints ] && NAMEDROOT="/usr/share/dns/root.hints"
     cp -p $NAMEDROOT /var/named/named.root
   fi
 

@@ -33,7 +33,9 @@ set_service_options() {
   ubuntu)
     set_or_append_option /etc/default/samba   SAMBAOPTIONS   "$SAMBAOPTIONS"
     [ -z "$(echo '$NAMEDOPTIONS' | grep '-u' - 2>/dev/null || :)" ] && NAMEDOPTIONS="-u $BIND_USER $NAMEDOPTIONS"
-    set_or_append_option /etc/default/bind9   OPTIONS        "$NAMEDOPTIONS"
+    svc="bind9"
+    [ -e /etc/default/named ] && svc="named"
+    set_or_append_option /etc/default/$svc    OPTIONS        "$NAMEDOPTIONS"
     echo "Unmasking samba-ad-dc service."
     systemctl unmask samba-ad-dc 2>/dev/null || :
     ;;
@@ -59,8 +61,9 @@ start_service() {
       /sbin/rc-service $1 start
     else
       if [ "$ID" = "ubuntu" ]; then
+        svc="bind9"
+        [ -e /etc/default/named ] && svc="named"
         [ "$1" = "samba" ] && svc="samba-ad-dc"
-        [ "$1" = "named" ] && svc="bind9"
       fi 
       systemctl start ${svc}
     fi
@@ -85,8 +88,9 @@ stop_service() {
       /sbin/rc-service $1 stop || :
     else
       if [ "$ID" = "ubuntu" ]; then
+        svc="bind9"
+        [ -e /etc/default/named ] && svc="named"
         [ "$1" = "samba" ] && svc="samba-ad-dc"
-        [ "$1" = "named" ] && svc="bind9"
       fi
       systemctl stop ${svc} || :
     fi
