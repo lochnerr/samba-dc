@@ -1,4 +1,4 @@
-FROM alpine:3.12
+FROM alpine:3.15
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \

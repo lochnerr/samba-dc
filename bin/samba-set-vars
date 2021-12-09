@@ -79,7 +79,6 @@ set_samba_vars() {
 	  SLAVE_JOIN_DELAY     = $SLAVE_JOIN_DELAY
 
 	  LOGFILEBASE          = $LOGFILEBASE
-	  CACHEDIR             = $CACHEDIR
 	  STATEDIR             = $STATEDIR
 	  PRIVATE_DIR          = $PRIVATE_DIR
 	  BINDDNS_DIR          = $BINDDNS_DIR

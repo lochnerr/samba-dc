@@ -49,9 +49,14 @@ set_service_options() {
 
 start_service() {
 
-  if [ "$ID" = "alpine" ] && [ "$1" = "named" ]; then
-    # Alpine does not set the dlz shared library, so do it now.
-    sed -i 's:\(#\ \)\(.*9_12.*\):\2:' $BINDDNS_DIR/named.conf
+  # Some versions of samba do not set the dlz shared library, so do it now.
+  if [ -e $BINDDNS_DIR/named.conf ]; then
+    # If there is no dlz library enabled, enable one.
+    if ! grep '^[[:space:]]*database' $BINDDNS_DIR/named.conf >/dev/null 2>&1 ; then
+      dlz="$(named -v  | cut -d '.' -f 2)"
+      echo "Enabling dlz_bind9_${dlz}.so library."
+      sed -i -e "s@\(^[[:space:]]*\)\(#[[:space:]]*\)\(database\)\(.*_${dlz}.*\)@\1\3\4 @" $BINDDNS_DIR/named.conf
+    fi
   fi
 
   svc="$1"
@@ -70,7 +75,13 @@ start_service() {
   else
     echo "Starting $1 process."
     opts="" 
-    [ "$1" = "samba" ] && opts="--no-process-group $SAMBAOPTIONS"
+    if [ "$1" = "samba" ]; then
+       if [ -n "$(samba --help 2>&1 | grep 'no-process' || :)" ]; then
+         opts="--no-process-group $SAMBAOPTIONS"
+       else
+         opts="$SAMBAOPTIONS"
+       fi
+    fi
     [ "$1" = "named" ] && opts="-u $BIND_USER $NAMEDOPTIONS"
     echo "Executing: ${svc} $opts"
     if ! ${svc} $opts ; then

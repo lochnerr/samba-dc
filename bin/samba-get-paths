@@ -3,10 +3,17 @@
 # Get the paths for the samba directories.
 
 STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
-CACHEDIR="$(smbd -b | grep CACHEDIR | awk '{print $2}')"
 PRIVATE_DIR="$(smbd -b | grep PRIVATE_DIR | awk '{print $2}')"
 BINDDNS_DIR="$(smbd -b | grep BINDDNS_DIR | awk '{ print $2 }')"
 # Some older versions of smbd do not have a BINDDNS_DIR var.
 [ -z "$BINDDNS_DIR" ] && BINDDNS_DIR="$PRIVATE_DIR"
 LOGFILEBASE="$(smbd -b | grep LOGFILEBASE | awk '{print $2}')"
+
+if [ -z "$STATEDIR" ]; then
+  # Fedora smbd no longer has build options.
+  [ -d /var/lib/samba ]           && STATEDIR="/var/lib/samba"
+  [ -d /var/lib/samba/private ]   && PRIVATE_DIR="/var/lib/samba/private"
+  [ -d /var/lib/samba/bind-dns ]  && BINDDNS_DIR="/var/lib/samba/bind-dns"
+  [ -d /var/log/samba ]           && LOGFILEBASE="/var/log/samba"
+fi
 

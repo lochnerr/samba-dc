@@ -405,7 +405,6 @@ provision_bind() {
 
   append_run_options
 
-  mkdir -p /var/named
   [ -e /etc/bind/rndc.key ] && cp -a /etc/bind/rndc.key /var/named/
   [ -e /etc/rndc.key ]      && cp -a /etc/rndc.key      /var/named/
 
@@ -421,7 +420,7 @@ provision_bind() {
   fi
 
   chmod 640 /var/named/rndc.key
-  chown -R root:$NAMED_GROUP /var/named/rndc.key
+  chown root:$NAMED_GROUP /var/named/rndc.key
 
   mkdir -p /var/named/log
   mkdir -p /var/named/master
@@ -453,6 +452,7 @@ provision_bind() {
     [ -L /var/named/named.root ] && rm -f /var/named/named.root
     NAMEDROOT="/var/bind/named.ca"
     [ "$ID" = "fedora" ] && NAMEDROOT="/var/named/named.ca"
+    [ -e /var/named-bak/named.ca ] && NAMEDROOT="/var/named-bak/named.ca"
     [ -e /etc/bind/db.root ] && NAMEDROOT="/etc/bind/db.root"
     # Newer location for Ubuntu root hints.
     [ -e /usr/share/dns/root.hints ] && NAMEDROOT="/usr/share/dns/root.hints"

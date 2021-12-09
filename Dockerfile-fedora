@@ -1,4 +1,4 @@
-FROM fedora:33
+FROM fedora:35
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -31,8 +31,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # findutils - find
 # traceroute - traceroute
 
-RUN dnf -y upgrade \
- && dnf -y install --nodocs \
+RUN dnf -y install --nodocs \
         samba-dc \
         samba-client \
         samba-winbind \
@@ -51,8 +50,12 @@ RUN dnf -y upgrade \
         net-tools \
         nmap \
         findutils \
-        traceroute \
- && dnf -y clean all
+        traceroute && \
+    dnf -y clean all && \
+    # Empty the yum cache.
+    rm -rf /var/cache/dnf && \
+    rm -rf /var/cache/yum && \
+    true
 
 # The persistent volume for samba and named.
 VOLUME /var/lib/samba
