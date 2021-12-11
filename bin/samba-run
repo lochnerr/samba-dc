@@ -5,6 +5,9 @@ set -e
 # Get samba directory path.
 STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
 
+# Fedora smbd no longer has build options.
+[ -d /var/lib/samba ] && STATEDIR="/var/lib/samba"
+
 # Delete command file.
 rm -f $STATEDIR/cmd
 

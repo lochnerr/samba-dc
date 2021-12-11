@@ -140,12 +140,13 @@ restart() {
 
 shutdown() {
 
+  echo "shutdown() entered." >>$STATEDIR/samba-startup.log
   stop
   # If running in init send kill signal to init process.
-  if [ "$SYSINIT" = "true" ] && [ "$CONTAINER" = "true" ] ; then
+  if [ "$SYSINIT" = "true" ]; then
     [ "$ID"  = "alpine" ] && initsys="OpenRC"
     echo "Sending kill signal to ${initsys:-systemd}." >>$STATEDIR/samba-startup.log
-    sleep 2s
+    sleep 1s
     sig="RTMIN+3"
     [ "$ID"  = "alpine" ] && sig="INT"
     kill -s $sig 1
@@ -163,6 +164,8 @@ shutdown() {
 # If not container proc 1 cgroups will all be root level (i.e. not followed by another /).
 CONTAINER="true"
 [ -n "$(cat /proc/1/cgroup | cut -d ':' -f 3 | grep ^/[^/]*$ || :)" ] && CONTAINER="false"
+[ -f /.dockerenv ] && CONTAINER="true"
+
 
 # Determine the bind user and group.
 BIND_USER="named"
