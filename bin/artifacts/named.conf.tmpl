@@ -36,6 +36,7 @@ options {
 
     # Enable dynamic DNS updates using Kerberos:
     tkey-gssapi-keytab "$BINDDNS_DIR/dns.keytab";
+    minimal-responses yes;
 };
 
 # Root Servers

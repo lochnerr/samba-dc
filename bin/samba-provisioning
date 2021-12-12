@@ -7,7 +7,6 @@ create_samba_config() {
   local cfg="/etc/samba/smb.conf"
 
 cat >$cfg <<__EOF__
-
 # Global parameters
 [global]
 	bind interfaces only = $BIND_INTERFACES_ONLY
@@ -53,14 +52,13 @@ cat >$cfg <<__EOF__
 	printing = CUPS
 	printcap name = /dev/null
 
-[netlogon]
-	path = $STATEDIR/sysvol/$DOMAIN/scripts
-	read only = No
-
 [sysvol]
 	path = $STATEDIR/sysvol
 	read only = No
 
+[netlogon]
+	path = $STATEDIR/sysvol/$DOMAIN/scripts
+	read only = No
 __EOF__
 
 }
@@ -81,7 +79,7 @@ provision() {
 
     # Provision domain.
 
-    [ "${USE_RFC2307}" = "yes" ] && rfc2307="--use-rfc2307"
+    [ "${USE_RFC2307}" = "yes" ] && rfc2307_setting="--use-rfc2307"
 
     echo "Provisioning domain '$DOMAIN'."
 
@@ -94,7 +92,7 @@ provision() {
       --dns-backend=$BACKEND \
       --option="bind interfaces only=${BIND_INTERFACES_ONLY:-no}" \
       --option="interfaces=${INTERFACES:-lo eth0}" \
-      ${rfc2307}
+      ${rfc2307_setting}
 
     # Record the provisioned backend.
     echo "$BACKEND" >$STATEDIR/backend
