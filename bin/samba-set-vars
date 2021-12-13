@@ -55,9 +55,8 @@ set_samba_vars() {
   BACKEND="$(echo ${BACKEND:-BIND9_DLZ} | tr 'a-z' 'A-Z')"
   # If the backend is not BIND9_DLZ, it must be SAMBA_INTERNAL.
   [ "$BACKEND" != "BIND9_DLZ" ] && BACKEND="SAMBA_INTERNAL"
-  LOG_LEVEL="${LOG_LEVEL:-1}"
   PASSWORD="${PASSWORD:-Passw0rd}"
-  SLAVE_JOIN_DELAY="${SLAVE_JOIN_DELAY:-40}"
+  TIMEZONE="${TIMEZONE:-US/Central}"
 
   cat <<-__EOF__
 	Samba Settings:
@@ -75,8 +74,6 @@ set_samba_vars() {
 	  TIMEZONE             = $TIMEZONE
 	  BIND_INTERFACES_ONLY = $BIND_INTERFACES_ONLY
 	  INTERFACES           = $INTERFACES
-	  LOG_LEVEL            = $LOG_LEVEL
-	  SLAVE_JOIN_DELAY     = $SLAVE_JOIN_DELAY
 
 	  LOGFILEBASE          = $LOGFILEBASE
 	  STATEDIR             = $STATEDIR

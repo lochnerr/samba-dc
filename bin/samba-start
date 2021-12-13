@@ -5,6 +5,25 @@
 set -e
 
 fixup_backend_config() {
+  # When a new server joins an existing domain or a new domain is created with the
+  # SAMBA_INTERNAL backend, no server services are included in the config file.
+  # Add them now. This allows switching between the bind and internal backends.
+  if ! grep "server services" /etc/samba/smb.conf >/dev/null 2>&1 ; then
+    echo "Adding 'server services' to /etc/samba/smb.conf."
+    sed -i \
+      -e '/server.*role.*domain.*controller/ a insert_tab server services = s3fs, rpc, nbt, wrepl, ldap, cldap, kdc, drepl, winbindd, ntp_signd, kcc, dnsupdate' \
+      /etc/samba/smb.conf
+  fi
+  # When a server is created with the BIND9_DLZ backend, no dns forwarder option is added
+  # to the config file. Add one now.
+  if ! grep "dns.*forwarder" /etc/samba/smb.conf >/dev/null 2>&1 ; then
+    echo "Adding 'dns forwarder' to /etc/samba/smb.conf."
+    sed -i \
+      -e "/bind.*interfaces.*only.*$/ a insert_tab dns forwarder = $DNS_FORWARDERS" \
+      /etc/samba/smb.conf
+  fi
+  # Hack to get tab at beginning of line added with sed.
+  sed -i -e 's:insert_tab :\t:' /etc/samba/smb.conf
   # Enable or disable the dns backend in smb.conf depending on the backend in use.
   if [ "$BACKEND" = "BIND9_DLZ" ]; then
     # BIND9_DLZ, disable samba dns service.
