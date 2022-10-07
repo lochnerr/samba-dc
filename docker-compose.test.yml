@@ -1,4 +1,4 @@
-version: "3.2"
+version: "2"
 
 # Samba Active Directory Domain Controller automated test compose file.
 
@@ -13,9 +13,6 @@ services:
     hostname: test-master.ad.example.com
     volumes:
       - dc1:/var/lib/samba
-    networks:
-      testnet:
-        ipv4_address: 10.30.50.2
 
   test-slave:
     image: lochnerr/samba-dc:latest
@@ -25,9 +22,6 @@ services:
     volumes:
       - dc2:/var/lib/samba
       - dc1:/var/lib/master
-    networks:
-      testnet:
-        ipv4_address: 10.30.50.3
     depends_on:
       - test-master
 
@@ -39,9 +33,6 @@ services:
     volumes:
       - dc1:/var/lib/samba
       - dc2:/var/lib/slave
-    networks:
-      testnet:
-        ipv4_address: 10.30.50.4
     depends_on:
       - test-master
       - test-slave
@@ -49,12 +40,4 @@ services:
 volumes:
   dc1:
   dc2:
-
-networks:
-  testnet:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 10.30.50.0/24
 
