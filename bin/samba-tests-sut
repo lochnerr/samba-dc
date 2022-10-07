@@ -57,15 +57,15 @@ wait_for_starting() {
   done
 }
 
+wait_for_starting test-master
+wait_for_starting test-slave
+
 # Get the master and slave IP's from docker's internal dns.
 MASTER_IP="$(host -t A test-master | grep 'has address' | cut -d ' ' -f 4)"
 SLAVE_IP="$(host -t A test-slave | grep 'has address' | cut -d ' ' -f 4)"
 
 echo "Master has address: $MASTER_IP"
 echo "Slave has address:  $SLAVE_IP"
-
-wait_for_starting test-master
-wait_for_starting test-slave
 
 # Set the global vars.
 . samba-set-vars
