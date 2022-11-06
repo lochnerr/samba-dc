@@ -1,4 +1,4 @@
-FROM alpine:3.15
+FROM alpine:3.16
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -21,6 +21,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # tzdata - time zones (allows setting time zone)
 # util-linux - mount (busybox mount does not return correct error codes needed in provisioning)
 # bash - needed by start scripts.
+# socat - socat (used for automated tests)
 # openrc - openrc init system.
 
 # Useful packages for debugging:
@@ -39,6 +40,7 @@ RUN apk add --update  --no-cache \
         tzdata \
         util-linux \
         bash \
+        socat \
         openrc \
         nmap 
 

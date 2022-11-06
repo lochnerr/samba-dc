@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -21,6 +21,10 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # bind9utils - host (used in provisioning and automated tests)
 # dnsutils - nsupdate (used in automated tests)
 # iproute2 - ip (used in provisioning and automated tests)
+# socat - socat (used for automated tests)
+# systemd-container - systemd for containers.
+
+# Useful packages for debugging:
 # tdb-tools - tdbbackup (used to create backup of idmap)
 # cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # wget - wget (used to get current named.cache file from internet)
@@ -46,6 +50,8 @@ RUN apt-get -y update \
         bind9utils \
         dnsutils \
         iproute2 \
+        socat \
+        systemd-container \
         tdb-tools \
         cifs-utils \
         wget \
@@ -54,8 +60,7 @@ RUN apt-get -y update \
         iputils-ping \
         vim \
         inetutils-traceroute \
-        nmap \
-        systemd
+        nmap
 
 # The persistent volume for samba and named.
 VOLUME /var/lib/samba

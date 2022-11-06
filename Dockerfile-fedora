@@ -22,6 +22,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # procps-ng - ps (Needed to determine if running under systemd)
 # wget - wget (used to get current named.cache file from internet)
 # hostname - hostname (used in samba-set-vars)
+# socat - socat (used for system unit tests)
 # systemd-container - systemd for containers.
 
 # Useful packages for debugging:
@@ -45,7 +46,8 @@ RUN dnf -y install --nodocs \
         procps-ng \
         wget \
         hostname \
-	systemd-container \
+        socat \
+        systemd-container \
         iputils \
         net-tools \
         nmap \
