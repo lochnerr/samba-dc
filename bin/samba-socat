@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# This script is used by system unit tests.
+
+# This is a simple socat responder that allows the system unit test container to determine the running state of
+# the active directory domain controllers being tested.  The tests can't start until the containers are ready.
+
+while true ; do
+  socat UDP4-RECVFROM:5555 EXEC:"/usr/local/bin/samba-status $1"
+  [ "$(cat $1/cmd)" = "shutdown" ] && break
+done
+
+echo "Exiting samba-socat process." >>$1/samba-startup.log
+
+exit 0
+

@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# This script is used by system unit tests.
+
+# It is a simple socat responder that allows the system unit test container to determine the running state of
+# the active directory domain controllers being tested.  The tests can't start until the containers are ready.
+
+read -r line
+
+if [ "$line" = "status" ]; then
+  # The command is status, so echo the status.
+  cat $1/samba-status
+elif [ -n "$line" ]; then
+  # The command is not a status command, so pass it on.
+  echo $line >$1/cmd
+  echo "OK"
+fi
+
+exit 0
+
