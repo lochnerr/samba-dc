@@ -2,6 +2,31 @@
 
 # samba-tests-sut: System Unit Tests for automated Docker build.
 
+wait_for_state() {
+
+  HOST="$1"
+  expected="$2"
+  expected2="invalid"
+  [ -n "$3" ] && expected2="$3"
+
+  # Wait up to 5 minutes for server to reach desired state.
+  rc="2"
+  for try in $(seq -s ' ' 1 30) ; do
+    result="$(echo "status" | socat -T3 STDIO UDP4-SENDTO:$HOST:5555 2>/dev/null || true)"
+    state=""
+    [ "$result" = "$expected"  ] && state="$expected"
+    [ "$result" = "$expected2" ] && state="$expected2"
+    if [ -n "$state" ]; then
+      echo "$HOST is $state!"
+      rc="0"
+      break
+    fi
+    sleep 3s
+    echo "Waiting for $HOST to be ${expected}."
+  done
+  [ "$rc" != "0" ] && echo "$HOST did not reach the $expected state!"
+}
+
 run_tests() {
 
   HOST_NAME="$1"
@@ -15,50 +40,14 @@ run_tests() {
 	nameserver ${HOST_IP}
 	__EOF__
 
-  dir="samba"
-  [ "$HOST_NAME" = "test-slave" ] && dir="slave"
-
-  # Wait up to 5 minutes for server to come up.
-  for try in $(seq -s ' ' 1 30) ; do
-    status="$(cat /var/lib/$dir/samba-status 2>/dev/null || true)"
-    if [ "$status" = "Running" ]; then
-      echo "$HOST_NAME is up!"
-      rc="0"
-      test_samba
-      [ "$errs" != "0" ] && rc="2"
-      break
-    fi
-    sleep 10;
-    echo "Waiting for ${HOST_NAME} to become ready ($try)."
-    rc="1"
-  done
-  if [ "$rc" != "0" ]; then
-    echo "**************************** $HOST_NAME startup log start."
-    cat /var/lib/$dir/samba-startup.log
-    echo "**************************** $HOST_NAME startup log end."
-    log_fail "Waiting for test host to come up"
-  fi
-  test_stats
+  test_samba
 }
 
-wait_for_starting() {
+echo "Starting system unit tests!"
 
-  dir="samba"
-  [ "$1" = "test-slave" ] && dir="slave"
-
-  # Wait up to 1 minute for server to begin starting.
-  for try in $(seq -s ' ' 1 4) ; do
-    status="$(cat /var/lib/$dir/samba-status 2>/dev/null || true)"
-    if [ "$status" = "Starting" ]; then
-      echo "$1 is starting!"
-      break
-    fi
-    sleep 15;
-  done
-}
-
-wait_for_starting test-master
-wait_for_starting test-slave
+# Wait for the servers to be in the starting or running state.
+wait_for_state test-master Starting Running
+wait_for_state test-slave  Starting Running
 
 # Get the master and slave IP's from docker's internal dns.
 MASTER_IP="$(host -t A test-master | grep 'has address' | cut -d ' ' -f 4)"
@@ -70,6 +59,30 @@ echo "Slave has address:  $SLAVE_IP"
 # Set the global vars.
 . samba-set-vars
 set_samba_vars
+
+# Create a config file for the test container.
+rm -f /etc/samba
+mkdir /etc/samba
+cat >/etc/samba/smb.conf <<-__EOF__
+	security = ADS
+	workgroup = ${WORKGROUP}
+	realm = ${REALM}
+
+	log file = /var/log/samba/%m.log
+	log level = 1
+
+	idmap config * : backend = tdb
+	idmap config * : range = 3000-7999
+
+	idmap config ${WORKGROUP}:backend = ad
+	idmap config ${WORKGROUP}:schema_mode = rfc2307
+	idmap config ${WORKGROUP}:range = 10000-999999
+	idmap config ${WORKGROUP}:unix_nss_info = yes
+
+	vfs objects = acl_xattr
+	map acl inherit = yes
+	store dos attributes = yes
+	__EOF__
 
 # Update the kerberos config.
 cat >/etc/krb5.conf <<-__EOF__
@@ -83,17 +96,22 @@ cat >/etc/krb5.conf <<-__EOF__
 . samba-tests
 
 # Test the master.
+wait_for_state $MASTER_IP Running
 run_tests test-master $MASTER_IP
 
 # Test the slave.
+wait_for_state $SLAVE_IP Running
 run_tests test-slave $SLAVE_IP
 
-# Signal shutdown for master and slave.
-/bin/echo "shutdown" >/var/lib/samba/cmd
-/bin/echo "shutdown" >/var/lib/slave/cmd
+# Show the test statistics.
+test_stats
 
-# It can take up to 15 seconds for services to shut down.
-sleep 15s
+# Signal shutdown for master and slave.
+result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:$MASTER_IP:5555 2>/dev/null || true)"
+result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:$SLAVE_IP:5555  2>/dev/null || true)"
+
+# Give services some time to finish shutting down.
+sleep 5s
 
 rc="0"
 if [ "$errs" != "0" ]; then

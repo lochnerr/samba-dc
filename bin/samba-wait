@@ -20,7 +20,7 @@ trap "shutdown"  $SIGNALS_SHUTDOWN
 
 # Check for request
 while : ; do
-  sleep 5s
+  sleep 1s
   cmd="$(cat $cmdfile 2>/dev/null || true)"
   if [ -n "$cmd" ]; then
     echo "Received $cmd command."                         >>$logfile
@@ -38,6 +38,7 @@ while : ; do
     ;;
   shutdown)
     trap "" $SIGNALS_SHUTDOWN
+    echo "Stopping" >$STATEDIR/samba-status
     shutdown
     ;;
   "")
@@ -46,5 +47,6 @@ while : ; do
     echo "Warning: Ignoring unsupported command: '$cmd'." >>$logfile
     ;;
   esac
+  echo "" >$cmdfile
 done
 

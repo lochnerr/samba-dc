@@ -100,6 +100,16 @@ fi
 . samba-set-vars
 set_samba_vars
 
+# If the realm is AD.EXAMPLE.COM then this is unit testing.
+# So, run the socat state responder in the background.
+if [ "$REALM" = "AD.EXAMPLE.COM" ]; then
+  echo "Starting samba-socat script in the background."
+  echo "" >$STATEDIR/cmd
+  /usr/local/bin/samba-socat $STATEDIR &
+else
+  echo "Not starting samba-socat."
+fi
+
 # Set the local timezone.
 if [ -n "$TIMEZONE" ]; then
   if [ -e /usr/share/zoneinfo/$TIMEZONE ]; then

@@ -40,11 +40,11 @@ provision() {
 
     # Join Domain.
 
-    # The /var/lib/master directory should only be mounted when running system unit tests.
-    if [ -d /var/lib/master ]; then
+    # Only do this when running system unit tests.
+    if [ "$(hostname -s)" = "test-slave" ]; then
       # Wait for master to come up.
       for try in $(seq -s ' ' 1 15) ; do
-        status="$(cat /var/lib/master/samba-status 2>/dev/null || true)"
+        status="$(echo "status" | socat -T2 STDIO UDP4-SENDTO:$MASTER_IP:5555 2>/dev/null || true)"
         if [ "$status" = "Running" ]; then
           echo "Master host $MASTER_IP is up!"
           break
