@@ -61,8 +61,11 @@ echo "Slave has address:  $SLAVE_IP"
 set_samba_vars
 
 # Create a config file for the test container.
-rm -f /etc/samba
-mkdir /etc/samba
+if [ -L /etc/samba ]; then
+  echo "Removing /etc/samba symbolic link."
+  rm -f /etc/samba
+  mkdir /etc/samba
+fi
 cat >/etc/samba/smb.conf <<-__EOF__
 	security = ADS
 	workgroup = ${WORKGROUP}
