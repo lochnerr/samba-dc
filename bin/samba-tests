@@ -88,10 +88,12 @@ nsupdate_del() {
 
 test_nsupdate() {
 
-  echo "********************************************************************************************"
-  echo "* Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *"
-  echo "* ; TSIG error with server: tsig verify failure                                            *"
-  echo "********************************************************************************************"
+  if [ "$BACKEND" != "BIND9_DLZ" ]; then
+    echo "********************************************************************************************"
+    echo "* Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *"
+    echo "* ; TSIG error with server: tsig verify failure                                            *"
+    echo "********************************************************************************************"
+  fi
 
   test="Kerberos kinit for dhcpduser@${REALM}"
   kinit -F -k -t $PRIVATE_DIR/dhcpduser.keytab "dhcpduser@${REALM}"

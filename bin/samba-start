@@ -162,7 +162,9 @@ cp -a $PRIVATE_DIR/krb5.conf /etc/
 # Step 5: Setting up the AD DNS back end
 
 # If the dns backend has changed, a samba dns upgrade is required.
-if [ "$BACKEND" != "$(cat $STATEDIR/backend 2>/dev/null || :)" ]; then
+prev="$(cat $STATEDIR/backend 2>/dev/null || :)"
+[ -z "$prev" ] && prev="$BACKEND"
+if [ "$BACKEND" != "$prev" ]; then
   echo "DNS backend changed to: ${BACKEND}."
   fixup_backend_config
   samba_upgradedns --dns-backend=$BACKEND
