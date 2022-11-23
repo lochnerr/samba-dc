@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# samba-prime: Script to persist samba provisioning veriables.
+# samba-prime: Script to persist samba provisioning variables.
+
+# This normally would only be run when provisioning a new active directory controller.
 
 . samba-set-vars
 set_samba_vars
