@@ -53,6 +53,7 @@ else
   echo
   echo "It is recommended to do a database check now to see if there are dangling references to the demoted controller:"
   echo "samba-tool dbcheck --cross-ncs"
+  echo "See: https://wiki.samba.org/index.php/Dbcheck"
   echo 
 fi
 

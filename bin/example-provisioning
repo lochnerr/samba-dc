@@ -1,0 +1,60 @@
+#!/bin/sh
+
+# This example script will provision a primary domain controller.  It should correctly
+# determine the appropriate configuration settings, the hostname is set properly,
+# e.g. 'dc1.ad.example.com'
+
+if [ "$(id -u)" != "0" ]; then
+  echo "Must be root!"
+  exit 1
+fi
+
+# Default to podman runtime.
+runtime="${runtime:-podman}"
+
+if [ -n "MASTER_IP" ]; then
+  echo "You are provisioning an additional active directory domain controller."
+  join_to_controller="-e MASTER_IP=$MASTER_IP"
+else
+  echo "You are provisioning the first active directory domain controller."
+fi
+
+dc_name="$(hostname -s)"
+fqdn="$(hostname)"
+
+# Remove orphan container, if needed.
+$runtime rm ${dc_name} >/dev/null 2>&1 || :
+
+# Prime the provisioning variables on the docker/podman volume for this controller.
+echo "Setting the provisioning variables."
+sudo $runtime run \
+ --rm \
+  -v ${dc_name}:/var/lib/samba \
+ --hostname ${fqdn} \
+ --net host \
+ $join_to_controller \
+ -e BACKEND=BIND9_DLZ \
+ -e DNS_FORWARDERS="8.8.8.8 8.8.4.4" \
+ -e BIND_INTERFACES_ONLY=Yes \
+ -e INTERFACES="lo eth0" \
+ -e USE_RFC2307=Yes \
+ -it lochnerr/samba-dc /usr/local/bin/samba-prime
+
+# Start the samba-dc normally which will run it in a container under systemd.
+echo "Provision and the run the active directory domain controller."
+sudo $runtime run \
+ --name ${dc_name} \
+ --privileged \
+ -v ${dc_name}:/var/lib/samba \
+ --hostname ${fqdn} \
+ --net host \
+ -d lochnerr/samba-dc
+
+if [ "$runtime" = "podman" ]; then
+  echo "Running under podman, so go ahead and create systemd service for it."
+  sudo podman generate systemd --new -n ${dc_name} -f
+  sudo cp -p container-${dc_name}.service    /usr/lib/systemd/system/
+  sudo systemctl daemon-reload
+  sudo systemctl enable container-${dc_name}.service
+fi
+
