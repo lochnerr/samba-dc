@@ -1,7 +1,4 @@
 logging {
-//
-// Modified from: https://kb.isc.org/docs/aa-01526
-//
      channel default_log {
           file "/var/named/log/default" versions 3 size 20m;
           print-time yes;
@@ -65,13 +62,6 @@ logging {
           print-severity yes;
           severity info;
      };
-     channel lame_edns_log {
-          file "/var/named/log/lame_edns" versions 3 size 20m;
-          print-time yes;
-          print-category yes;
-          print-severity yes;
-          severity info;
-     };
 //
 // If you have the category ‘queries’ defined, and you don’t want query logging
 // by default, make sure you add option ‘querylog no;’ - then you can toggle
@@ -109,7 +99,7 @@ logging {
           print-time yes;
           print-category yes;
           print-severity yes;
-          null;
+          syslog daemon;
           severity info;
      };
 //
@@ -122,24 +112,24 @@ logging {
           print-time yes;
           print-category yes;
           print-severity yes;
-          null;
+          file "named.run";
           severity dynamic;
      };
 //
 // Log routine stuff to syslog and default log:
 //
-     category default         { default_syslog; default_debug; default_log; };
-     category config          { default_syslog; default_debug; default_log; };
-     category dispatch        { default_syslog; default_debug; default_log; };
-     category network         { default_syslog; default_debug; default_log; };
-     category general         { default_syslog; default_debug; default_log; };
+     category default { default_syslog; default_debug; default_log; };
+     category config { default_syslog; default_debug; default_log; };
+     category dispatch { default_syslog; default_debug; default_log; };
+     category network { default_syslog; default_debug; default_log; };
+     category general { default_syslog; default_debug; default_log; };
 //
 // From BIND 9.12 and newer, you can direct zone load logging to another
 // channel with the new zoneload logging category.  If this would be useful
 // then firstly, configure the new channel, and then edit the line below
 // to direct the category there instead of to syslog and default log:
 //
-  // category zoneload        { default_syslog; default_debug; default_log; };
+     category zoneload { default_syslog; default_debug; default_log; };
 //
 // Log messages relating to what we got back from authoritative servers during
 // recursion (if lame-servers and edns-disabled are obscuring other messages
@@ -147,25 +137,25 @@ logging {
 // messages will be useful to research why some domains don’t resolve or
 // don’t resolve reliably
 //
-     category resolver        { auth_servers_log; default_debug; };
-     category cname           { auth_servers_log; default_debug; };
+     category resolver { auth_servers_log; default_debug; };       
+     category cname { auth_servers_log; default_debug; };       
      category delegation-only { auth_servers_log; default_debug; };
-     category lame-servers    { lame_edns_log; default_debug; };
-     category edns-disabled   { lame_edns_log; default_debug; };
+     category lame-servers { auth_servers_log; default_debug; };
+     category edns-disabled { auth_servers_log; default_debug; };
 //
 // Log problems with DNSSEC:
 //
-     category dnssec          { dnssec_log; default_debug; };
+     category dnssec { dnssec_log; default_debug; };
 //
 // Log together all messages relating to authoritative zone propagation
 //
-     category notify          { zone_transfers_log; default_debug; };
-     category xfer-in         { zone_transfers_log; default_debug; };
-     category xfer-out        { zone_transfers_log; default_debug; };
+     category notify { zone_transfers_log; default_debug; };       
+     category xfer-in { zone_transfers_log; default_debug; };       
+     category xfer-out { zone_transfers_log; default_debug; };
 //
 // Log together all messages relating to dynamic updates to DNS zone data:
 //
-     category update          { ddns_log; default_debug; };
+     category update{ ddns_log; default_debug; };
      category update-security { ddns_log; default_debug; };
 //
 // Log together all messages relating to client access and security.
@@ -173,9 +163,8 @@ logging {
 // null but which can be added here if you want more than the one-line
 // summary that is logged for failures to match a view).
 //
-     category client          { client_security_log; default_debug; };
-     category security        { client_security_log; default_debug; };
-     category unmatched       { client_security_log; default_debug; };
+     category client{ client_security_log; default_debug; };       
+     category security { client_security_log; default_debug; };
 //
 // Log together all messages that are likely to be related to rate-limiting.
 // This includes RRL (Response Rate Limiting) - usually deployed on authoritative
@@ -185,20 +174,20 @@ logging {
 // emitted by the database category that don’t relate to rate-limiting
 // behaviour by named.
 //
-     category rate-limit      { rate_limiting_log; default_debug; };
-     category spill           { rate_limiting_log; default_debug; };
-     category database        { rate_limiting_log; default_debug; };
+     category rate-limit { rate_limiting_log; default_debug; };       
+     category spill { rate_limiting_log; default_debug; };       
+     category database { rate_limiting_log; default_debug; };
 //
 // Log DNS-RPZ (Response Policy Zone) messages (if you are not using DNS-RPZ
 // then you may want to comment out this category and associated channel)
 //
-     category rpz             { rpz_log; default_debug; };
+     category rpz { rpz_log; default_debug; };
 //
 // Log messages relating to the "dnstap" DNS traffic capture system  (if you
 // are not using dnstap, then you may want to comment out this category and
 // associated channel).
 //
-   //category dnstap          { dnstap_log; default_debug; };
+     category dnstap { dnstap_log; default_debug; };
 //
 // If you are running a server (for example one of the Internet root
 // nameservers) that is providing RFC 5011 trust anchor updates, then you
@@ -209,18 +198,17 @@ logging {
 // syslog and default log:
 //
 //
-   //category trust-anchor-telemetry { default_syslog; default_debug; default_log; };
+     category trust-anchor-telemetry { default_syslog; default_debug; default_log; };
 //
 // If you have the category ‘queries’ defined, and you don’t want query logging
 // by default, make sure you add option ‘querylog no;’ - then you can toggle
 // query logging on (and off again) using command ‘rndc querylog’
 //
-     category queries         { queries_log; };
+     category queries { queries_log; };
 //
 // This logging category will only emit messages at debug levels of 1 or
 // higher - it can be useful to troubleshoot problems where queries are
 // resulting in a SERVFAIL response.
 //
-     category query-errors    { query-errors_log; };
+     category query-errors {query-errors_log; };
 };
-

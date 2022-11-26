@@ -1,0 +1,64 @@
+#!/bin/sh
+
+check_port() {
+
+  type="tcp"
+  [ -n "$2" ] && type="$2"
+
+  grep ":$1[[:space:]]" $type >results || :
+
+  # Check listening port
+  while read line; do
+    proto="$(echo $line | cut -d ' ' -f 1)"
+    addr="$(echo $line | cut -d ' ' -f 4)"
+    port="$(echo $addr | cut -d ':' -f 2)"
+    port="$port    "
+    port="${port:0:5}"
+    addr="$(echo $addr | cut -d ':' -f 1)"
+    x="$(echo $line | cut -d ' ' -f 7)"
+    [ -z "$x" ] && x="$(echo $line | cut -d ' ' -f 6)"
+    proc="$(echo $x | cut -d '/' -f 2)"
+    echo "Open $proto port $port $addr	process $proc"
+    err="true"
+    break
+  done <results
+
+  rm results
+}
+
+err="false"
+
+netstat -lp4nt 2>/dev/null >tcp || :
+netstat -lp4nu 2>/dev/null >udp || :
+
+check_port 53 udp
+check_port 88 udp
+check_port 137 udp
+check_port 138 udp
+check_port 289 udp
+
+check_port 53 tcp
+check_port 88 tcp
+check_port 135 tcp
+check_port 139 tcp
+check_port 389 tcp
+check_port 445 tcp
+check_port 636 tcp
+check_port 953 tcp
+check_port 3268 tcp
+check_port 3269 tcp
+check_port 49152 tcp
+check_port 49153 tcp
+check_port 49154 tcp
+
+if [ "$err" = "true" ]; then
+  echo "No samba ports open."
+else
+  echo "Error: samba ports open!"
+fi
+
+rm tcp
+rm udp
+
+echo "Done!"
+

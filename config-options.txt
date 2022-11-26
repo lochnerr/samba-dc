@@ -1,0 +1,49 @@
+## Samba Options:
+
+REALM
+PASSWORD
+# BACKEND = "BIND9_DLZ"
+# BIND_INTERFACES_ONLY = "no"
+# INTERFACES = "lo $(ip route get 8.8.8.8 | awk '{ print $5 }')"
+# USE_RFC2307 = "yes"
+# WORKGROUP = "${WORKGROUP:-$(echo $REALM | cut -d '.' -f 1)}"
+
+# ROLE
+
+## DNS Options:
+
+# ALLOWED_SUBNETS = "any"
+# DNS_FORWARDERS = "8.8.8.8 8.8.4.4" 
+
+## Other?
+
+# HOST_IP = "$(ip route get 8.8.8.8 | awk -F'src ' 'NR==1{split($2,a," ");print a[1]}')"
+# HOST_IP6
+# HOST_NAME = "$(hostname -s)"
+# MASTER_IP
+
+## Automatically assigned correctly.
+
+# DOMAIN = "$(echo $REALM | awk '{print $3}' | tr 'A-Z' 'a-z')"
+
+###############################
+
+rm x
+for exp in REALM PASSWORD BACKEND BIND_INTERFACES_ONLY INTERFACES USE_RFC2307 WORKGROUP ALLOWED_SUBNETS DNS_FORWARDERS HOST_IP HOST_IP6 HOST_NAME MASTER_IP DOMAIN ; do
+  grep -n "$exp" bin/* >>x
+done
+sort x >xs
+
+###############################
+
+Master and slaves:
+  $REALM
+  $PASSWORD
+  $BACKEND
+  $BIND_INTERFACES_ONLY
+  $INTERFACES
+  $USE_RFC2307
+
+Master only:
+  $WORKGROUP
+

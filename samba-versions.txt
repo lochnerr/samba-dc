@@ -1,0 +1,45 @@
+
+Samba latest versions as of 12/11/2021:
+
+10/29/2021 Series 15 4.15.3
+10/29/2021 Series 14 4.14.9
+10/29/2021 Series 13 4.13.13
+
+alpine 3.15  Samba 4.14.8
+fedora 35    Samba 4.15.2
+fedora 34    Samba 4.14.10
+ubuntu 20.04 Samba 4.13.14
+
+Notes from around 04/09/2021
+
+Samba version: 4.11.6-Ubuntu  On  Ubuntu 20.04.1 LTS (aarch64)  Docker Image 2020-11-11  (Same on x86_64 Docker) Sep 17, 2019  4.11.x  Jan 28, 2020 4.11.6
+Samba version: 4.12.10        On  Fedora 32          (x86_64)   Docker Image 2020-11-11                          Mar  3, 2020  4.12.x  Nov  5, 2020 4.12.10
+Samba version: 4.13.2         On  Fedora 33          (x86_64)   Docker Image 2020-11-11  (arm64v8/fedora:33 too) Sep 22, 2020  4.13.x  Nov  3, 2020 4.13.2
+               4.13.7 as of docker image 04/09/2021 on x86_64 and arm64.
+
+Fedora 33    Samba passes all tests in Docker on 'Ubuntu 20.04.1 LTS' 'ubuntu 5.4.0-1022-raspi' aarch64 raspi
+Ubuntu 20.04 Samba passes all tests in Docker on 'Ubuntu 20.04.1 LTS' 'ubuntu 5.4.0-1022-raspi' aarch64 raspi
+Ubuntu 18.04 Samba passes all tests in Docker on 'Ubuntu 20.04.1 LTS' 'ubuntu 5.4.0-1022-raspi' aarch64 raspi
+
+ad.clone1.com
+  dc1
+  dc2
+  corei7
+  
+  lochnerr@ad.clone1.com
+
+
+ipa.clone1.com
+  ipa1     .x
+  ipa2     .y
+  virtmgr  .7
+  xenhost  .9
+
+
+Would I want compatible aarch64/x86_64 servers, i.e. Ubuntu 20.04
+or, probably, more compatible with FreeIPA, Fedora?
+But, if compatible, need Fedora aarch64 Docker image...
+   --->>> podman pull arm64v8/fedora:33
+
+Prolly Fedora 32 or 33...
+

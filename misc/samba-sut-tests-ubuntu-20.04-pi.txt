@@ -1,0 +1,597 @@
+sut_1          | Master has address: 10.30.50.2
+sut_1          | Slave has address:  10.30.50.3
+test-master_1  | Running without systemd or openRC.
+sut_1          | test-master is starting!
+test-slave_1   | Running without systemd or openRC.
+test-master_1  | Samba Settings:
+test-master_1  | 
+test-master_1  |   SAMBA VERSION        = Version 4.11.6-Ubuntu
+test-master_1  |   DOMAIN               = ad.example.com
+test-master_1  |   WORKGROUP            = AD
+test-master_1  |   REALM                = AD.EXAMPLE.COM
+test-master_1  |   HOST NAME            = test-master
+test-master_1  |   HOST ADDR            = 10.30.50.2
+test-master_1  | 
+test-master_1  |   DNS BACKEND          = BIND9_DLZ
+test-master_1  |   DNS FORWARDERS       = 127.0.0.11 
+test-master_1  |   MASTER_IP            = 10.30.50.2
+test-master_1  |   TIMEZONE             = 
+test-master_1  |   BIND_INTERFACES_ONLY = yes
+test-master_1  |   INTERFACES           = lo eth0
+test-master_1  |   LOG_LEVEL            = 1
+test-master_1  |   SLAVE_JOIN_DELAY     = 40
+test-master_1  | 
+test-master_1  |   LOGFILEBASE          = /var/log/samba
+test-master_1  |   CACHEDIR             = /var/cache/samba
+test-master_1  |   STATEDIR             = /var/lib/samba
+test-master_1  |   PRIVATE_DIR          = /var/lib/samba/private
+test-master_1  |   BINDDNS_DIR          = /var/lib/samba/bind-dns
+sut_1          | test-slave is starting!
+test-slave_1   | Samba Settings:
+test-slave_1   | 
+test-slave_1   |   SAMBA VERSION        = Version 4.11.6-Ubuntu
+test-slave_1   |   DOMAIN               = ad.example.com
+test-slave_1   |   WORKGROUP            = AD
+test-slave_1   |   REALM                = AD.EXAMPLE.COM
+test-slave_1   |   HOST NAME            = test-slave
+test-slave_1   |   HOST ADDR            = 10.30.50.3
+test-slave_1   | 
+test-slave_1   |   DNS BACKEND          = BIND9_DLZ
+test-slave_1   |   DNS FORWARDERS       = 127.0.0.11 
+test-slave_1   |   MASTER_IP            = 10.30.50.2
+test-slave_1   |   TIMEZONE             = 
+test-slave_1   |   BIND_INTERFACES_ONLY = yes
+test-slave_1   |   INTERFACES           = lo eth0
+test-slave_1   |   LOG_LEVEL            = 1
+test-slave_1   |   SLAVE_JOIN_DELAY     = 40
+test-slave_1   | 
+test-slave_1   |   LOGFILEBASE          = /var/log/samba
+test-slave_1   |   CACHEDIR             = /var/cache/samba
+test-slave_1   |   STATEDIR             = /var/lib/samba
+test-slave_1   |   PRIVATE_DIR          = /var/lib/samba/private
+test-slave_1   |   BINDDNS_DIR          = /var/lib/samba/bind-dns
+test-master_1  | Samba DC Role: master
+test-slave_1   | Samba DC Role: slave
+test-master_1  | OS Variant: Ubuntu 20.04.1 LTS
+test-master_1  | ID: ubuntu
+test-master_1  | Creating persistent config directory in /var/lib/samba.
+test-slave_1   | OS Variant: Ubuntu 20.04.1 LTS
+test-slave_1   | ID: ubuntu
+test-master_1  | Provisioning domain 'ad.example.com'.
+test-master_1  | INFO 2020-11-14 10:25:10,581 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2128: Looking up IPv4 addresses
+test-slave_1   | Creating persistent config directory in /var/lib/samba.
+test-master_1  | INFO 2020-11-14 10:25:10,582 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2145: Looking up IPv6 addresses
+test-master_1  | WARNING 2020-11-14 10:25:10,583 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2152: No IPv6 address will be assigned
+test-master_1  | INFO 2020-11-14 10:25:11,442 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2319: Setting up share.ldb
+test-master_1  | INFO 2020-11-14 10:25:12,725 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2323: Setting up secrets.ldb
+test-master_1  | INFO 2020-11-14 10:25:12,785 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2329: Setting up the registry
+test-master_1  | INFO 2020-11-14 10:25:13,445 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2332: Setting up the privileges database
+test-master_1  | INFO 2020-11-14 10:25:13,586 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2335: Setting up idmap db
+test-master_1  | INFO 2020-11-14 10:25:15,221 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2342: Setting up SAM db
+test-master_1  | INFO 2020-11-14 10:25:15,339 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #898: Setting up sam.ldb partitions and settings
+test-master_1  | INFO 2020-11-14 10:25:15,342 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #910: Setting up sam.ldb rootDSE
+test-master_1  | INFO 2020-11-14 10:25:15,436 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1339: Pre-loading the Samba 4 and AD schema
+test-master_1  | Unable to determine the DomainSID, can not enforce uniqueness constraint on local domainSIDs
+test-master_1  | 
+sut_1          | Samba Settings:
+sut_1          | 
+sut_1          |   SAMBA VERSION        = Version 4.11.6-Ubuntu
+sut_1          |   DOMAIN               = ad.example.com
+sut_1          |   WORKGROUP            = AD
+sut_1          |   REALM                = AD.EXAMPLE.COM
+sut_1          |   HOST NAME            = sut
+sut_1          |   HOST ADDR            = 10.30.50.4
+sut_1          | 
+sut_1          |   DNS BACKEND          = BIND9_DLZ
+sut_1          |   DNS FORWARDERS       = 127.0.0.11 
+sut_1          |   MASTER_IP            = 10.30.50.2
+sut_1          |   TIMEZONE             = 
+sut_1          |   BIND_INTERFACES_ONLY = yes
+sut_1          |   INTERFACES           = lo eth0
+sut_1          |   LOG_LEVEL            = 1
+sut_1          |   SLAVE_JOIN_DELAY     = 40
+sut_1          | 
+sut_1          |   LOGFILEBASE          = /var/log/samba
+sut_1          |   CACHEDIR             = /var/cache/samba
+sut_1          |   STATEDIR             = /var/lib/samba
+sut_1          |   PRIVATE_DIR          = /var/lib/samba/private
+sut_1          |   BINDDNS_DIR          = /var/lib/samba/bind-dns
+sut_1          | Samba DC Role: slave
+sut_1          | OS Variant: Ubuntu 20.04.1 LTS
+sut_1          | ID: ubuntu
+sut_1          | Running tests for test-master at address 10.30.50.2.
+test-master_1  | INFO 2020-11-14 10:25:15,756 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1417: Adding DomainDN: DC=ad,DC=example,DC=com
+test-master_1  | INFO 2020-11-14 10:25:15,798 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1449: Adding configuration container
+test-master_1  | INFO 2020-11-14 10:25:15,837 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1464: Setting up sam.ldb schema
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (1).
+test-master_1  | INFO 2020-11-14 10:25:25,610 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1482: Setting up sam.ldb configuration data
+sut_1          | Waiting for test-master to become ready (1).
+test-master_1  | INFO 2020-11-14 10:25:26,039 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1523: Setting up display specifiers
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (2).
+test-master_1  | INFO 2020-11-14 10:25:32,930 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1531: Modifying display specifiers and extended rights
+test-master_1  | INFO 2020-11-14 10:25:33,040 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1538: Adding users container
+test-master_1  | INFO 2020-11-14 10:25:33,045 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1544: Modifying users container
+test-master_1  | INFO 2020-11-14 10:25:33,047 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1547: Adding computers container
+test-master_1  | INFO 2020-11-14 10:25:33,052 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1553: Modifying computers container
+test-master_1  | INFO 2020-11-14 10:25:33,054 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1557: Setting up sam.ldb data
+test-master_1  | INFO 2020-11-14 10:25:33,464 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1587: Setting up well known security principals
+test-master_1  | INFO 2020-11-14 10:25:33,628 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1601: Setting up sam.ldb users and groups
+test-master_1  | INFO 2020-11-14 10:25:33,934 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1609: Setting up self join
+test-master_1  | Repacking database from v1 to v2 format (first record CN=Setup-Command,CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com)
+test-master_1  | Repack: re-packed 10000 records so far
+test-master_1  | Repacking database from v1 to v2 format (first record CN=domainDNS-Display,CN=816,CN=DisplaySpecifiers,CN=Configuration,DC=ad,DC=example,DC=com)
+test-master_1  | Repacking database from v1 to v2 format (first record CN=Guest,CN=Users,DC=ad,DC=example,DC=com)
+sut_1          | Waiting for test-master to become ready (2).
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (3).
+test-master_1  | INFO 2020-11-14 10:25:42,409 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1138: Adding DNS accounts
+sut_1          | Waiting for test-master to become ready (3).
+test-master_1  | INFO 2020-11-14 10:25:46,065 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1172: Creating CN=MicrosoftDNS,CN=System,DC=ad,DC=example,DC=com
+test-master_1  | INFO 2020-11-14 10:25:46,119 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1185: Creating DomainDnsZones and ForestDnsZones partitions
+test-master_1  | INFO 2020-11-14 10:25:46,294 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1190: Populating DomainDnsZones and ForestDnsZones partitions
+test-master_1  | Repacking database from v1 to v2 format (first record CN=MicrosoftDNS,DC=DomainDnsZones,DC=ad,DC=example,DC=com)
+test-master_1  | Repacking database from v1 to v2 format (first record CN=MicrosoftDNS,DC=ForestDnsZones,DC=ad,DC=example,DC=com)
+test-master_1  | WARNING 2020-11-14 10:25:50,479 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #986: BIND version unknown, please modify /var/lib/samba/bind-dns/named.conf manually.
+test-master_1  | INFO 2020-11-14 10:25:50,482 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1271: See /var/lib/samba/bind-dns/named.conf for an example configuration include file for BIND
+test-master_1  | INFO 2020-11-14 10:25:50,482 pid:111 /usr/lib/python3/dist-packages/samba/provision/sambadns.py #1273: and /var/lib/samba/bind-dns/named.txt for further documentation required for secure DNS updates
+test-master_1  | INFO 2020-11-14 10:25:50,707 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2032: Setting up sam.ldb rootDSE marking as synchronized
+test-master_1  | INFO 2020-11-14 10:25:50,752 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2037: Fixing provision GUIDs
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (4).
+test-master_1  | INFO 2020-11-14 10:25:53,616 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2394: A Kerberos configuration suitable for Samba AD has been generated at /var/lib/samba/private/krb5.conf
+test-master_1  | INFO 2020-11-14 10:25:53,617 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2396: Merge the contents of this file with your system krb5.conf or replace it with this one. Do not create a symlink!
+test-master_1  | INFO 2020-11-14 10:25:54,897 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2102: Setting up fake yp server settings
+test-master_1  | INFO 2020-11-14 10:25:55,397 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #490: Once the above files are installed, your Samba AD server will be ready to use
+test-master_1  | INFO 2020-11-14 10:25:55,398 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #495: Server Role:           active directory domain controller
+test-master_1  | INFO 2020-11-14 10:25:55,398 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #496: Hostname:              test-master
+test-master_1  | INFO 2020-11-14 10:25:55,399 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #497: NetBIOS Domain:        AD
+test-master_1  | INFO 2020-11-14 10:25:55,399 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #498: DNS Domain:            ad.example.com
+test-master_1  | INFO 2020-11-14 10:25:55,400 pid:111 /usr/lib/python3/dist-packages/samba/provision/__init__.py #499: DOMAIN SID:            S-1-5-21-1676415517-1797107613-1517930401
+test-master_1  | Setting up named configuration.
+test-master_1  | Bind Version:  BIND 9.16.1-Ubuntu (Stable Release) <id:d497c32>
+test-master_1  | Creating persistent named directory in /var/lib/samba.
+test-master_1  | Adding default SAMBAOPTIONS run options to samba-vars file.
+test-master_1  | Adding default NAMEDOPTIONS run options to samba-vars file.
+test-master_1  | Enabling dlz_bind9_12.so library.
+test-master_1  | Running 'named-checkconf'.
+test-master_1  | Starting named process.
+test-master_1  | Executing: named -u bind -u bind
+sut_1          | Waiting for test-master to become ready (4).
+test-master_1  | Using domain server:
+test-master_1  | Name: 127.0.0.1
+test-master_1  | Address: 127.0.0.1#53
+test-master_1  | Aliases: 
+test-master_1  | 
+test-master_1  | localhost has address 127.0.0.1
+test-master_1  | Starting samba process.
+test-master_1  | Executing: samba --no-process-group 
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (5).
+test-master_1  | 10.30.50.2 is in a /24 subnet.
+test-master_1  | Adding reverse dns zone 50.30.10.in-addr.arpa.
+sut_1          | Waiting for test-master to become ready (5).
+test-master_1  | Zone 50.30.10.in-addr.arpa created successfully
+test-master_1  | IPv4 dns record for test-master exists.
+test-master_1  | Not adding IPv6 dns record: No IPv6 address detected.
+test-master_1  | Adding reverse pointer record for 2 in 50.30.10.in-addr.arpa type PTR test-master.ad.example.com
+test-master_1  | Record added successfully
+test-master_1  | samba-tool user setexpiry Administrator --noexpiry
+test-master_1  | Expiry for user 'Administrator' disabled.
+test-master_1  | samba-tool domain passwordsettings set --complexity=off
+test-master_1  | Password complexity deactivated!
+test-master_1  | All changes applied successfully!
+test-master_1  | samba-tool domain passwordsettings set --min-pwd-age=0
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (6).
+test-master_1  | Minimum password age changed!
+test-master_1  | All changes applied successfully!
+test-master_1  | samba-tool domain passwordsettings set --max-pwd-age=0
+test-master_1  | Maximum password age changed!
+test-master_1  | All changes applied successfully!
+test-master_1  | pdbedit -P maximum password age -C -1
+test-master_1  | account policy "maximum password age" description: Maximum password age, in seconds (default: -1 => never expire passwords)
+test-master_1  | account policy "maximum password age" value was: 4294967295
+test-master_1  | account policy "maximum password age" value is now: 18446744073709551615
+test-master_1  | samba-tool domain passwordsettings set --history-length=0
+test-master_1  | Password history length changed!
+test-master_1  | All changes applied successfully!
+sut_1          | Waiting for test-master to become ready (6).
+test-master_1  | User 'dhcpduser' created successfully
+test-master_1  | Expiry for user 'dhcpduser' disabled.
+test-master_1  | Added members to group DnsAdmins
+test-master_1  | Export one principal to /var/lib/samba/private/dhcpduser.keytab
+test-master_1  | Password for Administrator@AD.EXAMPLE.COM: 
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (7).
+sut_1          | Waiting for test-master to become ready (7).
+test-master_1  | DNS update (samba_dnsupdate) succeeded!
+test-master_1  | Killing samba process 194 from /run/samba/samba.pid.
+test-master_1  | Killing named process 168 from /run/named/named.pid.
+test-master_1  | Starting named process.
+test-master_1  | Executing: named -u bind -u bind
+test-master_1  | Starting samba process.
+test-master_1  | Executing: samba --no-process-group 
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (8).
+test-master_1  | 
+test-master_1  | 	Sharename       Type      Comment
+test-master_1  | 	---------       ----      -------
+test-master_1  | 	netlogon        Disk      
+test-master_1  | 	sysvol          Disk      
+test-master_1  | 	IPC$            IPC       IPC Service (Samba 4.11.6-Ubuntu)
+test-master_1  | SMB1 disabled -- no workgroup available
+test-master_1  | smbclient -L 10.30.50.2 -U% test passed!
+test-master_1  | Password for Administrator@AD.EXAMPLE.COM: 
+test-master_1  |   .                                   D        0  Sat Nov 14 10:25:15 2020
+test-master_1  |   ..                                  D        0  Sat Nov 14 10:25:34 2020
+test-master_1  | 
+test-master_1  | 		14996704 blocks of size 1024. 3600708 blocks available
+test-master_1  | smbclient //test-master.ad.example.com/netlogon -U administrator -k -c 'ls' test passed!
+test-master_1  | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-master.ad.example.com.
+test-master_1  | Lookup SRV record for _ldap._tcp.ad.example.com. test passed!
+test-master_1  | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-master.ad.example.com.
+test-master_1  | Lookup SRV record for _kerberos._udp.ad.example.com. test passed!
+test-master_1  | test-master.ad.example.com has address 10.30.50.2
+test-master_1  | Lookup A record for test-master.ad.example.com. test passed!
+test-master_1  | Password for Administrator@AD.EXAMPLE.COM: 
+test-master_1  | kinit Administrator test passed!
+test-master_1  | Kerberos tickets:
+test-master_1  | Ticket cache: FILE:/tmp/krb5cc_0
+test-master_1  | Default principal: Administrator@AD.EXAMPLE.COM
+test-master_1  | 
+test-master_1  | Valid starting     Expires            Service principal
+test-master_1  | 11/14/20 10:26:35  11/14/20 20:26:35  krbtgt/AD.EXAMPLE.COM@AD.EXAMPLE.COM
+test-master_1  | 	renew until 11/15/20 10:26:34
+test-master_1  | ********************************************************************************************
+test-master_1  | * Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *
+test-master_1  | * ; TSIG error with server: tsig verify failure                                            *
+test-master_1  | ********************************************************************************************
+test-master_1  | Kerberos kinit for dhcpduser@AD.EXAMPLE.COM test passed!
+sut_1          | Waiting for test-master to become ready (8).
+test-master_1  | nstest.ad.example.com has address 10.30.50.250
+test-master_1  | Lookup A record for nstest.ad.example.com test passed!
+test-master_1  | 250.50.30.10.in-addr.arpa domain name pointer nstest.ad.example.com.
+test-master_1  | Lookup PTR record for 250.50.30.10.in-addr.arpa test passed!
+test-master_1  | Delete A record for nstest.ad.example.com test passed!
+test-master_1  | Delete PTR record for 250.50.30.10.in-addr.arpa test passed!
+test-master_1  | nsupdate test results: 0:0:0:0
+test-master_1  | 11 tests run.
+test-master_1  | 11 tests passed.
+test-master_1  | No optional tests failed.
+test-master_1  | No manditory tests failed.
+test-master_1  | Running without systemd or openRC.
+test-slave_1   | Waiting for host 10.30.50.2 to become ready (9).
+test-slave_1   | Master host 10.30.50.2 is up!
+test-slave_1   | Mounting sysvol //test-master.ad.example.com/sysvol.
+test-slave_1   | //test-master.ad.example.com/sysvol mounted successfully.
+test-slave_1   | Password for Administrator@AD.EXAMPLE.COM: 
+test-slave_1   | Joining domain 'ad.example.com'.
+test-slave_1   | Forcing domain join to use SAMBA_INTERNAL backend.
+test-slave_1   | Backend will be upgraded to BIND9_DLZ after the join.
+test-slave_1   | INFO 2020-11-14 10:26:42,248 pid:159 /usr/lib/python3/dist-packages/samba/join.py #107: Finding a writeable DC for domain 'AD.EXAMPLE.COM'
+test-slave_1   | INFO 2020-11-14 10:26:42,297 pid:159 /usr/lib/python3/dist-packages/samba/join.py #109: Found DC test-master.ad.example.com
+test-slave_1   | INFO 2020-11-14 10:26:42,812 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1542: workgroup is AD
+test-slave_1   | INFO 2020-11-14 10:26:42,812 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1545: realm is ad.example.com
+test-slave_1   | INFO 2020-11-14 10:26:44,574 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2128: Looking up IPv4 addresses
+test-slave_1   | INFO 2020-11-14 10:26:44,575 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2145: Looking up IPv6 addresses
+test-slave_1   | WARNING 2020-11-14 10:26:44,576 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2152: No IPv6 address will be assigned
+test-slave_1   | INFO 2020-11-14 10:26:45,325 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2319: Setting up share.ldb
+test-slave_1   | INFO 2020-11-14 10:26:45,407 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2323: Setting up secrets.ldb
+test-slave_1   | INFO 2020-11-14 10:26:45,476 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2329: Setting up the registry
+test-slave_1   | INFO 2020-11-14 10:26:45,672 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2332: Setting up the privileges database
+sut_1          | Waiting for test-master to become ready (9).
+sut_1          | test-master is up!
+test-slave_1   | INFO 2020-11-14 10:26:45,769 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2335: Setting up idmap db
+test-slave_1   | INFO 2020-11-14 10:26:45,830 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2342: Setting up SAM db
+test-slave_1   | INFO 2020-11-14 10:26:45,850 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #898: Setting up sam.ldb partitions and settings
+test-slave_1   | INFO 2020-11-14 10:26:45,852 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #910: Setting up sam.ldb rootDSE
+test-slave_1   | INFO 2020-11-14 10:26:45,867 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #1339: Pre-loading the Samba 4 and AD schema
+test-slave_1   | Unable to determine the DomainSID, can not enforce uniqueness constraint on local domainSIDs
+test-slave_1   | 
+sut_1          | 
+sut_1          | 	Sharename       Type      Comment
+sut_1          | 	---------       ----      -------
+sut_1          | 	netlogon        Disk      
+sut_1          | 	sysvol          Disk      
+sut_1          | 	IPC$            IPC       IPC Service (Samba 4.11.6-Ubuntu)
+sut_1          | SMB1 disabled -- no workgroup available
+sut_1          | smbclient -L 10.30.50.2 -U% test passed!
+test-slave_1   | INFO 2020-11-14 10:26:46,016 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2394: A Kerberos configuration suitable for Samba AD has been generated at /var/lib/samba/private/krb5.conf
+test-slave_1   | INFO 2020-11-14 10:26:46,016 pid:159 /usr/lib/python3/dist-packages/samba/provision/__init__.py #2396: Merge the contents of this file with your system krb5.conf or replace it with this one. Do not create a symlink!
+sut_1          | Password for Administrator@AD.EXAMPLE.COM: 
+sut_1          |   .                                   D        0  Sat Nov 14 10:25:15 2020
+sut_1          |   ..                                  D        0  Sat Nov 14 10:25:34 2020
+sut_1          | 
+sut_1          | 		14996704 blocks of size 1024. 3589068 blocks available
+sut_1          | smbclient //test-master.ad.example.com/netlogon -U administrator -k -c 'ls' test passed!
+sut_1          | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-master.ad.example.com.
+sut_1          | Lookup SRV record for _ldap._tcp.ad.example.com. test passed!
+sut_1          | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-master.ad.example.com.
+sut_1          | Lookup SRV record for _kerberos._udp.ad.example.com. test passed!
+sut_1          | test-master.ad.example.com has address 10.30.50.2
+sut_1          | Lookup A record for test-master.ad.example.com. test passed!
+sut_1          | Password for Administrator@AD.EXAMPLE.COM: 
+test-slave_1   | Schema-DN[CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com] objects[402/1739] linked_values[0/0]
+sut_1          | kinit Administrator test passed!
+sut_1          | Kerberos tickets:
+sut_1          | Ticket cache: FILE:/tmp/krb5cc_0
+sut_1          | Default principal: Administrator@AD.EXAMPLE.COM
+sut_1          | 
+sut_1          | Valid starting     Expires            Service principal
+sut_1          | 11/14/20 10:26:47  11/14/20 20:26:47  krbtgt/AD.EXAMPLE.COM@AD.EXAMPLE.COM
+sut_1          | 	renew until 11/15/20 10:26:46
+sut_1          | ********************************************************************************************
+sut_1          | * Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *
+sut_1          | * ; TSIG error with server: tsig verify failure                                            *
+sut_1          | ********************************************************************************************
+sut_1          | Kerberos kinit for dhcpduser@AD.EXAMPLE.COM test passed!
+test-slave_1   | Schema-DN[CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com] objects[804/1739] linked_values[0/0]
+sut_1          | nstest.ad.example.com has address 10.30.50.250
+sut_1          | Lookup A record for nstest.ad.example.com test passed!
+sut_1          | 250.50.30.10.in-addr.arpa domain name pointer nstest.ad.example.com.
+sut_1          | Lookup PTR record for 250.50.30.10.in-addr.arpa test passed!
+test-slave_1   | Schema-DN[CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com] objects[1206/1739] linked_values[0/0]
+sut_1          | Delete A record for nstest.ad.example.com test passed!
+sut_1          | Delete PTR record for 250.50.30.10.in-addr.arpa test passed!
+sut_1          | nsupdate test results: 0:0:0:0
+sut_1          | 11 tests run.
+sut_1          | 11 tests passed.
+sut_1          | No optional tests failed.
+sut_1          | No manditory tests failed.
+sut_1          | Running tests for test-slave at address 10.30.50.3.
+test-slave_1   | Schema-DN[CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com] objects[1608/1739] linked_values[0/0]
+test-slave_1   | Schema-DN[CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com] objects[1739/1739] linked_values[0/0]
+test-slave_1   | Analyze and apply schema objects
+test-slave_1   | Partition[CN=Configuration,DC=ad,DC=example,DC=com] objects[402/1625] linked_values[0/1]
+test-slave_1   | Partition[CN=Configuration,DC=ad,DC=example,DC=com] objects[804/1625] linked_values[0/1]
+test-slave_1   | Partition[CN=Configuration,DC=ad,DC=example,DC=com] objects[1206/1625] linked_values[0/1]
+test-slave_1   | Partition[CN=Configuration,DC=ad,DC=example,DC=com] objects[1608/1625] linked_values[0/1]
+test-slave_1   | Partition[CN=Configuration,DC=ad,DC=example,DC=com] objects[1625/1625] linked_values[30/30]
+test-slave_1   | Partition[DC=ad,DC=example,DC=com] objects[98/98] linked_values[23/23]
+test-slave_1   | Partition[DC=ad,DC=example,DC=com] objects[270/270] linked_values[24/24]
+test-slave_1   | Partition[DC=DomainDnsZones,DC=ad,DC=example,DC=com] objects[45/45] linked_values[0/0]
+test-slave_1   | Partition[DC=ForestDnsZones,DC=ad,DC=example,DC=com] objects[18/18] linked_values[0/0]
+test-slave_1   | Exop on[CN=RID Manager$,CN=System,DC=ad,DC=example,DC=com] objects[3] linked_values[0]
+sut_1          | Waiting for test-slave to become ready (1).
+test-slave_1   | Repacking database from v1 to v2 format (first record CN=Setup-Command,CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com)
+test-slave_1   | Repack: re-packed 10000 records so far
+test-slave_1   | Repacking database from v1 to v2 format (first record CN=domainDNS-Display,CN=816,CN=DisplaySpecifiers,CN=Configuration,DC=ad,DC=example,DC=com)
+test-slave_1   | Repacking database from v1 to v2 format (first record CN=MicrosoftDNS,DC=DomainDnsZones,DC=ad,DC=example,DC=com)
+test-slave_1   | Repacking database from v1 to v2 format (first record CN=MicrosoftDNS,DC=ForestDnsZones,DC=ad,DC=example,DC=com)
+test-slave_1   | Repacking database from v1 to v2 format (first record CN=Guest,CN=Users,DC=ad,DC=example,DC=com)
+test-slave_1   | INFO 2020-11-14 10:27:07,407 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1115: Adding 1 remote DNS records for TEST-SLAVE.ad.example.com
+test-slave_1   | INFO 2020-11-14 10:27:08,106 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1178: Adding DNS A record TEST-SLAVE.ad.example.com for IPv4 IP: 10.30.50.3
+test-slave_1   | INFO 2020-11-14 10:27:08,888 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1206: Adding DNS CNAME record 8eb15208-9459-4bd5-b7fe-a9c30840a88e._msdcs.ad.example.com for TEST-SLAVE.ad.example.com
+test-slave_1   | INFO 2020-11-14 10:27:09,294 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1231: All other DNS records (like _ldap SRV records) will be created samba_dnsupdate on first startup
+test-slave_1   | INFO 2020-11-14 10:27:09,295 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1237: Replicating new DNS records in DC=DomainDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | Partition[DC=DomainDnsZones,DC=ad,DC=example,DC=com] objects[2/2] linked_values[0/0]
+test-slave_1   | INFO 2020-11-14 10:27:09,505 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1237: Replicating new DNS records in DC=ForestDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | Partition[DC=ForestDnsZones,DC=ad,DC=example,DC=com] objects[2/2] linked_values[0/0]
+sut_1          | Waiting for test-slave to become ready (2).
+test-slave_1   | INFO 2020-11-14 10:27:10,054 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1252: Sending DsReplicaUpdateRefs for all the replicated partitions
+test-slave_1   | INFO 2020-11-14 10:27:10,429 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1282: Setting isSynchronized and dsServiceName
+test-slave_1   | INFO 2020-11-14 10:27:10,489 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1297: Setting up secrets database
+test-slave_1   | INFO 2020-11-14 10:27:10,766 pid:159 /usr/lib/python3/dist-packages/samba/join.py #1559: Joined domain AD (SID S-1-5-21-1676415517-1797107613-1517930401) as a DC
+test-slave_1   | Adding CN=TEST-SLAVE,OU=Domain Controllers,DC=ad,DC=example,DC=com
+test-slave_1   | Adding CN=TEST-SLAVE,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=example,DC=com
+test-slave_1   | Adding CN=NTDS Settings,CN=TEST-SLAVE,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=example,DC=com
+test-slave_1   | Adding SPNs to CN=TEST-SLAVE,OU=Domain Controllers,DC=ad,DC=example,DC=com
+test-slave_1   | Setting account password for TEST-SLAVE$
+test-slave_1   | Enabling account
+test-slave_1   | Calling bare provision
+test-slave_1   | Provision OK for domain DN DC=ad,DC=example,DC=com
+test-slave_1   | Starting replication
+test-slave_1   | Replicating critical objects from the base DN of the domain
+test-slave_1   | Done with always replicated NC (base, config, schema)
+test-slave_1   | Replicating DC=DomainDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | Replicating DC=ForestDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | Committing SAM database
+test-slave_1   | Synchronizing idmap with master.
+test-slave_1   | Setting up named configuration.
+test-slave_1   | Bind Version:  BIND 9.16.1-Ubuntu (Stable Release) <id:d497c32>
+test-slave_1   | Creating persistent named directory in /var/lib/samba.
+test-slave_1   | Adding default SAMBAOPTIONS run options to samba-vars file.
+test-slave_1   | Adding default NAMEDOPTIONS run options to samba-vars file.
+test-slave_1   | chmod: cannot access '/var/lib/samba/bind-dns/dns': No such file or directory
+test-slave_1   | DNS backend changed to: BIND9_DLZ.
+test-slave_1   | Reading domain information
+test-slave_1   | DNS accounts already exist
+test-slave_1   | No zone file /var/lib/samba/bind-dns/dns/AD.EXAMPLE.COM.zone
+test-slave_1   | DNS records will be automatically created
+test-slave_1   | DNS partitions already exist
+test-slave_1   | Adding dns-test-slave account
+test-slave_1   | BIND version unknown, please modify /var/lib/samba/bind-dns/named.conf manually.
+test-slave_1   | See /var/lib/samba/bind-dns/named.conf for an example configuration include file for BIND
+test-slave_1   | and /var/lib/samba/bind-dns/named.txt for further documentation required for secure DNS updates
+test-slave_1   | Finished upgrading DNS
+test-slave_1   | /usr/sbin/samba_upgradedns:338: DeprecationWarning: The 'warn' method is deprecated, use 'warning' instead
+test-slave_1   |   logger.warn("DNS records will be automatically created")
+test-slave_1   | Enabling dlz_bind9_12.so library.
+test-slave_1   | Running 'named-checkconf'.
+test-slave_1   | Starting named process.
+test-slave_1   | Executing: named -u bind -u bind
+sut_1          | Waiting for test-slave to become ready (3).
+test-slave_1   | Using domain server:
+test-slave_1   | Name: 127.0.0.1
+test-slave_1   | Address: 127.0.0.1#53
+test-slave_1   | Aliases: 
+test-slave_1   | 
+test-slave_1   | localhost has address 127.0.0.1
+test-slave_1   | Starting samba process.
+test-slave_1   | Executing: samba --no-process-group 
+test-slave_1   | 10.30.50.3 is in a /24 subnet.
+test-slave_1   | Reverse zone 50.30.10.in-addr.arpa exists.
+test-slave_1   | IPv4 dns record for test-slave exists.
+test-slave_1   | Not adding IPv6 dns record: No IPv6 address detected.
+test-slave_1   | Adding reverse pointer record for 3 in 50.30.10.in-addr.arpa type PTR test-slave.ad.example.com
+test-slave_1   | Record added successfully
+test-slave_1   | Manually replicating directory partitions.
+test-slave_1   | samba-tool drs replicate test-master test-slave dc=ad,dc=example,dc=com
+test-slave_1   | Replicate from test-slave to test-master was successful.
+test-slave_1   | Replication succeeded!
+sut_1          | Waiting for test-slave to become ready (4).
+test-slave_1   | Default-First-Site-Name\TEST-SLAVE
+test-slave_1   | DSA Options: 0x00000001
+test-slave_1   | DSA object GUID: 8eb15208-9459-4bd5-b7fe-a9c30840a88e
+test-slave_1   | DSA invocationId: cfafe71f-2527-43a0-ad73-2af493cf6be4
+test-slave_1   | 
+test-slave_1   | ==== INBOUND NEIGHBORS ====
+test-slave_1   | 
+test-slave_1   | CN=Schema,CN=Configuration,DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ Sat Nov 14 10:27:27 2020 UTC was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ Sat Nov 14 10:27:27 2020 UTC
+test-slave_1   | 
+test-slave_1   | DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ Sat Nov 14 10:27:29 2020 UTC was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ Sat Nov 14 10:27:29 2020 UTC
+test-slave_1   | 
+test-slave_1   | CN=Configuration,DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ Sat Nov 14 10:27:27 2020 UTC was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ Sat Nov 14 10:27:27 2020 UTC
+test-slave_1   | 
+test-slave_1   | DC=DomainDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ Sat Nov 14 10:27:29 2020 UTC was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ Sat Nov 14 10:27:29 2020 UTC
+test-slave_1   | 
+test-slave_1   | DC=ForestDnsZones,DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ Sat Nov 14 10:27:27 2020 UTC was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ Sat Nov 14 10:27:27 2020 UTC
+test-slave_1   | 
+test-slave_1   | ==== OUTBOUND NEIGHBORS ====
+test-slave_1   | 
+test-slave_1   | DC=ad,DC=example,DC=com
+test-slave_1   | 	Default-First-Site-Name\TEST-MASTER via RPC
+test-slave_1   | 		DSA object GUID: 53399516-0471-4169-9aef-20869dc7a432
+test-slave_1   | 		Last attempt @ NTTIME(0) was successful
+test-slave_1   | 		0 consecutive failure(s).
+test-slave_1   | 		Last success @ NTTIME(0)
+test-slave_1   | 
+test-slave_1   | ==== KCC CONNECTION OBJECTS ====
+test-slave_1   | 
+test-slave_1   | Export one principal to /var/lib/samba/private/dhcpduser.keytab
+test-slave_1   | Password for Administrator@AD.EXAMPLE.COM: 
+sut_1          | Waiting for test-slave to become ready (5).
+test-slave_1   | DNS update (samba_dnsupdate) succeeded!
+test-slave_1   | Killing samba process 254 from /run/samba/samba.pid.
+test-slave_1   | Killing named process 228 from /run/named/named.pid.
+test-slave_1   | Starting named process.
+test-slave_1   | Executing: named -u bind -u bind
+test-slave_1   | Starting samba process.
+test-slave_1   | Executing: samba --no-process-group 
+test-slave_1   | 
+test-slave_1   | 	Sharename       Type      Comment
+test-slave_1   | 	---------       ----      -------
+test-slave_1   | 	netlogon        Disk      
+test-slave_1   | 	sysvol          Disk      
+test-slave_1   | 	IPC$            IPC       IPC Service (Samba 4.11.6-Ubuntu)
+test-slave_1   | SMB1 disabled -- no workgroup available
+test-slave_1   | smbclient -L 10.30.50.3 -U% test passed!
+test-slave_1   | Password for Administrator@AD.EXAMPLE.COM: 
+sut_1          | Waiting for test-slave to become ready (6).
+test-slave_1   |   .                                   D        0  Sat Nov 14 10:26:46 2020
+test-slave_1   |   ..                                  D        0  Sat Nov 14 10:26:46 2020
+test-slave_1   | 
+test-slave_1   | 		14996704 blocks of size 1024. 3531148 blocks available
+test-slave_1   | smbclient //test-slave.ad.example.com/netlogon -U administrator -k -c 'ls' test passed!
+test-slave_1   | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-slave.ad.example.com.
+test-slave_1   | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-master.ad.example.com.
+test-slave_1   | Lookup SRV record for _ldap._tcp.ad.example.com. test passed!
+test-slave_1   | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-slave.ad.example.com.
+test-slave_1   | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-master.ad.example.com.
+test-slave_1   | Lookup SRV record for _kerberos._udp.ad.example.com. test passed!
+test-slave_1   | test-slave.ad.example.com has address 10.30.50.3
+test-slave_1   | Lookup A record for test-slave.ad.example.com. test passed!
+test-slave_1   | Password for Administrator@AD.EXAMPLE.COM: 
+test-slave_1   | kinit Administrator test passed!
+test-slave_1   | Kerberos tickets:
+test-slave_1   | Ticket cache: FILE:/tmp/krb5cc_0
+test-slave_1   | Default principal: Administrator@AD.EXAMPLE.COM
+test-slave_1   | 
+test-slave_1   | Valid starting     Expires            Service principal
+test-slave_1   | 11/14/20 10:27:50  11/14/20 20:27:50  krbtgt/AD.EXAMPLE.COM@AD.EXAMPLE.COM
+test-slave_1   | 	renew until 11/15/20 10:27:50
+test-slave_1   | ********************************************************************************************
+test-slave_1   | * Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *
+test-slave_1   | * ; TSIG error with server: tsig verify failure                                            *
+test-slave_1   | ********************************************************************************************
+test-slave_1   | Kerberos kinit for dhcpduser@AD.EXAMPLE.COM test passed!
+test-slave_1   | nstest.ad.example.com has address 10.30.50.250
+test-slave_1   | Lookup A record for nstest.ad.example.com test passed!
+test-slave_1   | 250.50.30.10.in-addr.arpa domain name pointer nstest.ad.example.com.
+test-slave_1   | Lookup PTR record for 250.50.30.10.in-addr.arpa test passed!
+test-slave_1   | Delete A record for nstest.ad.example.com test passed!
+test-slave_1   | Delete PTR record for 250.50.30.10.in-addr.arpa test passed!
+test-slave_1   | nsupdate test results: 0:0:0:0
+test-slave_1   | 11 tests run.
+test-slave_1   | 11 tests passed.
+test-slave_1   | No optional tests failed.
+test-slave_1   | No manditory tests failed.
+test-slave_1   | Running without systemd or openRC.
+sut_1          | Waiting for test-slave to become ready (7).
+sut_1          | test-slave is up!
+sut_1          | 
+sut_1          | 	Sharename       Type      Comment
+sut_1          | 	---------       ----      -------
+sut_1          | 	netlogon        Disk      
+sut_1          | 	sysvol          Disk      
+sut_1          | 	IPC$            IPC       IPC Service (Samba 4.11.6-Ubuntu)
+sut_1          | SMB1 disabled -- no workgroup available
+sut_1          | smbclient -L 10.30.50.3 -U% test passed!
+sut_1          | Password for Administrator@AD.EXAMPLE.COM: 
+sut_1          |   .                                   D        0  Sat Nov 14 10:26:46 2020
+sut_1          |   ..                                  D        0  Sat Nov 14 10:26:46 2020
+sut_1          | 
+sut_1          | 		14996704 blocks of size 1024. 3531120 blocks available
+sut_1          | smbclient //test-slave.ad.example.com/netlogon -U administrator -k -c 'ls' test passed!
+sut_1          | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-master.ad.example.com.
+sut_1          | _ldap._tcp.ad.example.com has SRV record 0 100 389 test-slave.ad.example.com.
+sut_1          | Lookup SRV record for _ldap._tcp.ad.example.com. test passed!
+sut_1          | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-slave.ad.example.com.
+sut_1          | _kerberos._udp.ad.example.com has SRV record 0 100 88 test-master.ad.example.com.
+sut_1          | Lookup SRV record for _kerberos._udp.ad.example.com. test passed!
+sut_1          | test-slave.ad.example.com has address 10.30.50.3
+sut_1          | Lookup A record for test-slave.ad.example.com. test passed!
+sut_1          | Password for Administrator@AD.EXAMPLE.COM: 
+sut_1          | kinit Administrator test passed!
+sut_1          | Kerberos tickets:
+sut_1          | Ticket cache: FILE:/tmp/krb5cc_0
+sut_1          | Default principal: Administrator@AD.EXAMPLE.COM
+sut_1          | 
+sut_1          | Valid starting     Expires            Service principal
+sut_1          | 11/14/20 10:28:03  11/14/20 20:28:03  krbtgt/AD.EXAMPLE.COM@AD.EXAMPLE.COM
+sut_1          | 	renew until 11/15/20 10:28:02
+sut_1          | ********************************************************************************************
+sut_1          | * Note: When using the SAMBA_INTERNAL backend, the following is a spurious benign message: *
+sut_1          | * ; TSIG error with server: tsig verify failure                                            *
+sut_1          | ********************************************************************************************
+sut_1          | Kerberos kinit for dhcpduser@AD.EXAMPLE.COM test passed!
+sut_1          | nstest.ad.example.com has address 10.30.50.250
+sut_1          | Lookup A record for nstest.ad.example.com test passed!
+sut_1          | 250.50.30.10.in-addr.arpa domain name pointer nstest.ad.example.com.
+sut_1          | Lookup PTR record for 250.50.30.10.in-addr.arpa test passed!
+sut_1          | Delete A record for nstest.ad.example.com test passed!
+sut_1          | Delete PTR record for 250.50.30.10.in-addr.arpa test passed!
+sut_1          | nsupdate test results: 0:0:0:0
+sut_1          | 22 tests run.
+sut_1          | 22 tests passed.
+sut_1          | No optional tests failed.
+sut_1          | No manditory tests failed.
+test-master_1  | Killing samba process 476 from /run/samba/samba.pid.
+test-master_1  | Killing named process 461 from /run/named/named.pid.
+test-slave_1   | Killing samba process 638 from /run/samba/samba.pid.
+test-slave_1   | Killing named process 623 from /run/named/named.pid.
+samba-dc_test-master_1 exited with code 0
+samba-dc_test-slave_1 exited with code 0
+sut_1          | SUT tests completed!
+sut_1          | Exiting!
+samba-dc_sut_1 exited with code 0
+

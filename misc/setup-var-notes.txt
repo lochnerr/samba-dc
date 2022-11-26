@@ -1,0 +1,75 @@
+both $DOMAIN
+prov $WORKGROUP
+join $MASTER_IP
+both $PASSWORD - Defaults okay for prov, not for join.
+
+both ${USE_RFC2307} - Defaults well
+both $BACKEND - Defaults well
+both ${BIND_INTERFACES_ONLY:-no}" - Defaults well
+both ${INTERFACES:-lo eth0}" - Defaults well
+both $HOST_IP - Defaults well
+both ${HOST_NAME} - Defaults well
+
+derv $REALM
+
+UDP="$(netstat -lp4nu)"
+TCP="$(netstat -lp4nt)"
+echo "$UDP" | grep :53
+
+# Working example, using bash syntax.
+while read line; do
+  proto="$(echo $line | cut -d ' ' -f 1)"
+  addr="$(echo $line | cut -d ' ' -f 4)"
+  port="$(echo $addr | cut -d ':' -f 2)"
+  addr="$(echo $addr | cut -d ':' -f 1)"
+  x="$(echo $line | cut -d ' ' -f 7)"
+  proc="$(echo $x | cut -d '/' -f 2)"
+  echo "Process $proc is listening on $proto port $port at address $addr"
+done < <(netstat -lp4nt | grep :53 || :)
+
+
+# netstat -lp4nu
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+udp        0      0 172.17.0.2:53           0.0.0.0:*                           278/named           
+udp        0      0 127.0.0.1:53            0.0.0.0:*                           278/named           
+udp        0      0 0.0.0.0:88              0.0.0.0:*                           306/krb5kdc         
+udp        0      0 172.17.0.2:137          0.0.0.0:*                           293/samba           
+udp        0      0 172.17.255.255:137      0.0.0.0:*                           293/samba           
+udp        0      0 127.0.0.1:137           0.0.0.0:*                           293/samba           
+udp        0      0 127.255.255.255:137     0.0.0.0:*                           293/samba           
+udp        0      0 172.17.0.2:138          0.0.0.0:*                           293/samba           
+udp        0      0 172.17.255.255:138      0.0.0.0:*                           293/samba           
+udp        0      0 127.0.0.1:138           0.0.0.0:*                           293/samba           
+udp        0      0 127.255.255.255:138     0.0.0.0:*                           293/samba           
+udp        0      0 172.17.0.2:389          0.0.0.0:*                           297/samba           
+udp        0      0 127.0.0.1:389           0.0.0.0:*                           297/samba           
+
+# netstat -lp4nt
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 172.17.0.2:53           0.0.0.0:*               LISTEN      278/named           
+tcp        0      0 127.0.0.1:53            0.0.0.0:*               LISTEN      278/named           
+tcp        0      0 0.0.0.0:88              0.0.0.0:*               LISTEN      306/krb5kdc         
+tcp        0      0 172.17.0.2:135          0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 127.0.0.1:135           0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 127.0.0.1:139           0.0.0.0:*               LISTEN      298/smbd            
+tcp        0      0 172.17.0.2:139          0.0.0.0:*               LISTEN      298/smbd            
+tcp        0      0 172.17.0.2:389          0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:389           0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:445           0.0.0.0:*               LISTEN      298/smbd            
+tcp        0      0 172.17.0.2:445          0.0.0.0:*               LISTEN      298/smbd            
+tcp        0      0 172.17.0.2:636          0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:636           0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:953           0.0.0.0:*               LISTEN      278/named           
+tcp        0      0 172.17.0.2:3268         0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:3268          0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 172.17.0.2:3269         0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 127.0.0.1:3269          0.0.0.0:*               LISTEN      295/samba           
+tcp        0      0 172.17.0.2:49152        0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 127.0.0.1:49152         0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 172.17.0.2:49153        0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 127.0.0.1:49153         0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 172.17.0.2:49154        0.0.0.0:*               LISTEN      292/samba           
+tcp        0      0 127.0.0.1:49154         0.0.0.0:*               LISTEN      292/samba           
+

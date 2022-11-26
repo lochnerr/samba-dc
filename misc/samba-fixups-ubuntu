@@ -1,0 +1,41 @@
+#!/bin/sh
+
+disable_service() {
+  
+  if [ -n "$(echo $running | grep $1.service)" ]; then
+    echo "Disabling and stopping $1.service."
+    systemctl disable $1.service
+    systemctl stop $1.service
+  fi
+}
+
+remove_apparmor() {
+
+  service apparmor stop
+  service apparmor teardown
+  /usr/sbin/update-rc.d -f apparmor remove
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games; dpkg -r apparmor libapparmor-perl libapparmor1
+}
+
+samba_fixups_ubuntu_systemd() {
+
+  # Get a list of running services.
+  running="$(systemctl | grep -i running)"
+
+  disable_service bind9
+  disable_service nmbd
+  disable_service smbd
+  disable_service systemd-resolved
+  disable_service systemd-timesyncd
+  disable_service winbind
+
+  systemctl unmask samba-ad-dc.service
+}
+
+samba_fixups_ubuntu() {
+
+  if [ -n "$SYSTEMD" ]; then
+    samba_fixups_ubuntu_systemd
+  fi
+}
+

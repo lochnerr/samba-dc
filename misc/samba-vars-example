@@ -1,0 +1,90 @@
+# This is the samba-ad-dc container configuration file.
+
+MASTER_IP="192.168.33.5"
+WORKGROUP="CLONE1"
+TIMEZONE="US/Central"
+RUN_TESTS="true"
+
+# The following variables are used for provisioning on the first run only:
+
+# The master IPv4 address must be specified.  It is used in the provisioning
+# process to determine if the system is a master or slave domain controller.
+#MASTER_IP="192.168.66.5"
+
+# The workgroup will default to the first node of the domain name, e.g. AD for ad.example.com.
+#WORKGROUP="WORKGROUP"
+
+# The domain will default to the domain of the container host as returned by 'hostname -d'.
+#DOMAIN="ad.internal"
+
+# The provisioning process generally determines the correct host ip by the following:
+# ip route get 8.8.8.8 | awk -F'src ' 'NR==1{split($2,a," ");print a[1]}'
+#HOST_IP="192.168.66.5"
+
+# The host name will default to the hostname of the container as returned by 'hostname -s'.
+#HOST_NAME="dc1"
+
+# The initial password to use when provisioning samba. 
+# This should be changed once provisioning is finished.
+#PASSWORD="Passw0rd"
+
+# The startup process correctly extracts these from the initial resolv.conf file.
+#DNS_FORWARDERS="8.8.8.8 8.8.4.4"
+
+# The default for allowed subnets is all rfc 1919 non-routable networks.
+#ALLOWED_SUBNETS="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"
+
+# Whether or not samba should bind to specific interfaces.
+#BIND_INTERFACES_ONLY="yes"
+
+# The interfaces samba should bind to. 
+#INTERFACES="lo eth0"
+
+# Whether or not samba should use rfc 2307 attributes.
+#USE_RFC2307="yes"
+
+# The time in seconds a slave should wait before joining an existing directory.
+# This allows a master and slaves to be started and provisioned as a group.
+#SLAVE_JOIN_DELAY="150"
+
+# The realm defaults to the upper case domain name.
+#REALM="AD.INTERNAL"
+
+# The following variables modify the operation of the domain controller:
+
+# The timezone to use.  The default is not to set the time zone.
+#TIMEZONE=""
+
+# The backend to use.  Only BIND9_DLZ and SAMBA_INTERNAL are supported.
+#BACKEND="BIND9_DLZ"
+
+# Whether or not to run tests after starting the server.
+#RUN_TESTS="true"
+
+# Set the log level.
+#LOG_LEVEL="1"
+
+# Set the bind log level.  Not set by default.
+#BIND_LOG_LEVEL=""
+
+##########################################
+
+##WINBIND_USE_DEFAULT_DOMAIN (1) - Incorrectly used, no default value.
+##DOMAIN_LOGONS (1) - Incorrectly used, no default value.
+##DOMAIN_MASTER (1) - Incorrectly used, no default value.
+
+##? Vars:
+
+##ROLE (10)
+
+##Internal Vars:
+
+##STATEDIR (19)
+##PRIVATE_DIR (14)
+##LOGFILEBASE (19 tail mostly)
+##CACHEDIR (8)
+##BINDDNS_DIR (8) All local to setup bind local config.
+
+##PROVISIONED (2)
+
+

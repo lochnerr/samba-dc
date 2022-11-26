@@ -1,0 +1,34 @@
+
+Gateway VM (192.168.20.3/192.168.20.4):
+
+You would configure a VM on each VM host to be the gateway for:
+  dns
+  ntp
+
+dns port 53 proxy (named)
+  options {
+        forward only;
+        forwarders { 8.8.8.8; 8.8.4.4 };
+  };
+  zone "ad.clone1.com" {
+        type forward;
+        forward only;
+        forwarders { 127.0.0.1 port 5353; };
+  };
+  # Envoy proxies port 127.0.0.1:5353 to 192.168.20.5:53 and 192.168.20.6:53
+
+  # Envoy also proxies port 127.0.0.1:123 to 192.168.20.5:123 and 192.168.20.6:123
+
+Samba VM (192.168.20.5/192.168.20.6):
+
+  Samba Container (--net host):
+    samba-dc
+    dns  - needs dlz
+    ntp  - needs /var/lib/samba/ntp_signd (could do socat sock-tcp <-> envoy tcp <-> socat tcp-sock)
+      # Listens for Envoy connections via http/2
+    dhcp - needs samba-tool
+
+Other VM:
+  Other Container:
+    tftpd
+

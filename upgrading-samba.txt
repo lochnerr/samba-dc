@@ -1,0 +1,43 @@
+
+Upgrading Samba DC
+
+dns/samba
+  - 2 or more.
+dhcp
+  - Married pair.
+chronyd - systemd user (non-root) ready.  Works under podman, on fedora and ubuntu, including raspberry pi.
+  - Must be in VM because it must have access to samba socket.
+  - Or, samba must run as container on host, without Xen???  Firecracker supports unix sockets too.
+  - Bootstrap into bare-metal Fedora/Ubuntu(Pi)?
+     - Could then use KVM virtual machines, Firecracker VMs, Weaveworks Ignite VMs, or containers.
+        - Custom kernel plus any distro rootfs.
+           - Host chronyd (Sets clock for host)
+           - VM-1 router/dhcp pair(Needs to be able to set dns name for address)
+           - VM-2 chronyd server(Needs to be able to get to ntp_signd socket)
+           - VM-3 samba dc/dns
+           - VM-3 FreePBX
+
+DC1 VM Host (live-xen-fedora) 192.168.x.9
+  use /srv/bootstrap/startup to set /etc/chrony.conf pool (done).
+    - this sets the hosts real-time clock.
+  DC1 VM 192.168.x.5
+    container chronyd-server syncs to ?
+    container dns/samba
+    container dhcp
+
+DC2 VM Host (raspberry pi) 192.168.x.17
+  use /srv/bootstrap/startup to set /etc/systemd/timesyncd.conf pool (done).
+    - this sets the hosts real-time clock.
+  DC2 VM 192.168.x.6
+    container chronyd-server syncs to ?
+    container dns/samba
+    container dhcp
+
+DC3 VM Host (virtmgr KVM?) 192.168.x.7
+  Manually set /etc/chrony.conf pool (done).
+    - this sets the hosts real-time clock.
+  DC1 VM 192.168.x.8
+    container chronyd-server syncs to ?
+    container dns/samba
+
+

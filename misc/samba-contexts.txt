@@ -1,0 +1,46 @@
+/etc/samba(/.*)?								system_u:object_r:samba_etc_t:s0
+/etc/rc\.d/init\.d/nmb							--	system_u:object_r:samba_initrc_exec_t:s0
+/etc/rc\.d/init\.d/smb							--	system_u:object_r:samba_initrc_exec_t:s0
+/etc/samba/smbpasswd							--	system_u:object_r:samba_secrets_t:s0
+/etc/samba/passdb\.tdb							--	system_u:object_r:samba_secrets_t:s0
+/etc/samba/MACHINE\.SID							--	system_u:object_r:samba_secrets_t:s0
+/etc/samba/secrets\.tdb							--	system_u:object_r:samba_secrets_t:s0
+/etc/rc\.d/init\.d/winbind						--	system_u:object_r:samba_initrc_exec_t:s0
+
+/var/lib/samba(/.*)?								system_u:object_r:samba_var_t:s0
+/var/lib/samba/scripts(/.*)?							system_u:object_r:samba_unconfined_script_exec_t:s0
+/usr/lib/systemd/system/nmb.*						--	system_u:object_r:samba_unit_file_t:s0
+/usr/lib/systemd/system/smb.*						--	system_u:object_r:samba_unit_file_t:s0
+/usr/lib/systemd/system/winbind.*					--	system_u:object_r:samba_unit_file_t:s0
+/var/lib/samba/winbindd_privileged(/.*)?					system_u:object_r:winbind_var_run_t:s0
+
+/var/log/samba(/.*)?								system_u:object_r:samba_log_t:s0
+
+/var/cache/samba(/.*)?								system_u:object_r:samba_var_t:s0
+/var/cache/samba/winbindd_privileged(/.*)?					system_u:object_r:winbind_var_run_t:s0
+
+/var/spool/samba(/.*)?								system_u:object_r:samba_spool_t:s0
+
+/var/nmbd(/.*)?									system_u:object_r:samba_var_t:s0
+
+/usr/bin/net								--	system_u:object_r:samba_net_exec_t:s0
+
+/var/run/samba(/.*)?								system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/nmbd(/.*)?							system_u:object_r:nmbd_var_run_t:s0
+/var/run/samba/winbindd(/.*)?							system_u:object_r:winbind_var_run_t:s0
+/var/run/samba/nmbd\.pid						--	system_u:object_r:nmbd_var_run_t:s0
+/var/run/samba/smbd\.pid						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/brlock\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/locking\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/gencache\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/messages\.tdb						--	system_u:object_r:nmbd_var_run_t:s0
+/var/run/samba/sessionid\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/namelist\.debug						--	system_u:object_r:nmbd_var_run_t:s0
+/var/run/samba/share_info\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+/var/run/samba/unexpected\.tdb						--	system_u:object_r:nmbd_var_run_t:s0
+/var/run/samba/connections\.tdb						--	system_u:object_r:smbd_var_run_t:s0
+
+/usr/share/munin/plugins/samba						--	system_u:object_r:services_munin_plugin_exec_t:s0
+/usr/share/system-config-samba/system-config-samba\.py			--	system_u:object_r:bin_t:s0
+/usr/share/system-config-samba/system-config-samba-mechanism\.py	--	system_u:object_r:sambagui_exec_t:s0
+

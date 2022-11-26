@@ -1,0 +1,36 @@
+
+Samba...Docker/Podman
+
+Host networing is absolutely necessary
+
+chronyd needs /var/lib/samba/bind-dns/
+named needs dlz
+samba-dc
+
+How to do provision/join in container?
+  for automated build tests?
+  for production?
+
+How to pass variables?
+  environment values
+  secrets
+  interactively???
+
+
+# The traditional docker way to join...
+
+sudo docker run \
+  --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
+  --rm --name samba-dc \
+  --privileged \
+  --net host \
+  -e BACKEND=INTERNAL \
+  -e PROVISION_MODE=JOIN \
+  -e MASTER_IP=192.168.20.5 \
+  -e FORWARDERS=192.168.20.254 \
+  --hostname dc2.ad.wincretail.com \
+  -v /srv/lib/samba-dc:/var/lib/samba \
+  -v /srv/log/samba-dc:/var/log/samba \
+  -it lochnerr/samba-dc /usr/local/bin/samba-provision
+
+

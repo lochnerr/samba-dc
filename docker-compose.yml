@@ -1,0 +1,38 @@
+version: "3"
+
+# Samba Active Directory Domain Controller automated test compose file.
+
+# When provisioning master and slave domain controllers, privileged is required.
+# On the slave it is needed to mount the master's sysvol.
+
+# podman run -v $(pwd):/local 
+
+# podman run --name sammy -e XYZZY=xyzzy --privileged -v /srv/samba-dc:/var/lib/samba --net host --hostname dc1.ad.example.com -d lochnerr/samba-dc 
+
+
+#sudo firewall-cmd --permanent 
+#--add-port={
+#53/udp,53/tcp,88/udp,88/tcp,
+#123/udp,135/tcp,137/udp,138/udp,139/tcp,
+#389/udp,389/tcp,445/tcp,464/udp,464/tcp,
+#636/tcp,3268/tcp,3269/tcp,49152-65535/tcp}
+
+services:
+  samba-dc:
+    container_name: sammy
+    #command: /usr/bin/sleep 3600s
+    image: lochnerr/samba-dc:latest
+    ports:
+    #   - 53:53/udp
+    #   - 53:53/tcp
+       - 88:88/udp
+       - 88:88/tcp
+    privileged: true
+    restart: "no"
+    hostname: dc1.ad.example.com
+    environment:
+      - XYZZY=xyzzy
+    volumes:
+      - /srv/samba-dc:/var/lib/samba
+    #network_mode: host
+

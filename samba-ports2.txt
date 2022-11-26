@@ -1,0 +1,95 @@
+  udp
+  :53 named
+  :67 dhcp
+  :68 dhcp
+ :123 ntp
+ :137 samba
+ :138 samba
+ :389 samba
+ :464 samba
+
+  tcp
+  :53 named
+ :139 smbd
+ :389 samba
+ :445 smbd
+ :464 samba
+ :636 samba
+ :953 named
+:3268 samba
+:3269 samba
+49152 samba
+49153 samba
+49154 samba
+
+named 53 (both) & 953
+smbd 139 & 445
+ntpd (not chrony) 123 (udp)
+samba udp 389 137 138 464
+samba tcp 636 49152 49153 49154 3268 3269 389 135 464
+
+$ sudo netstat -plaunt | egrep "ntp|bind|named|samba|?mbd"
+tcp        0      0 192.168.50.6:53         0.0.0.0:*               LISTEN      712/named           
+tcp        0      0 192.168.20.6:53         0.0.0.0:*               LISTEN      712/named           
+tcp        0      0 127.0.0.1:53            0.0.0.0:*               LISTEN      712/named           
+tcp        0      0 127.0.0.1:953           0.0.0.0:*               LISTEN      712/named                  
+tcp6       0      0 :::53                   :::*                    LISTEN      712/named           
+tcp6       0      0 ::1:953                 :::*                    LISTEN      712/named    
+udp        0      0 192.168.50.6:53         0.0.0.0:*                           712/named           
+udp    79872      0 192.168.20.6:53         0.0.0.0:*                           712/named           
+udp    53760      0 127.0.0.1:53            0.0.0.0:*                           712/named           
+udp6   84864      0 :::53                   :::*                                712/named           
+
+
+tcp        0      0 0.0.0.0:636             0.0.0.0:*               LISTEN      726/samba           
+tcp        0      0 0.0.0.0:49152           0.0.0.0:*               LISTEN      721/samba           
+tcp        0      0 0.0.0.0:49153           0.0.0.0:*               LISTEN      721/samba           
+tcp        0      0 0.0.0.0:49154           0.0.0.0:*               LISTEN      721/samba           
+tcp        0      0 0.0.0.0:3268            0.0.0.0:*               LISTEN      726/samba           
+tcp        0      0 0.0.0.0:3269            0.0.0.0:*               LISTEN      726/samba           
+tcp        0      0 0.0.0.0:389             0.0.0.0:*               LISTEN      726/samba           
+tcp        0      0 0.0.0.0:135             0.0.0.0:*               LISTEN      721/samba           
+tcp        0      0 0.0.0.0:464             0.0.0.0:*               LISTEN      728/samba           
+tcp6       0      0 :::636                  :::*                    LISTEN      726/samba           
+tcp6       0      0 :::49152                :::*                    LISTEN      721/samba           
+tcp6       0      0 :::49153                :::*                    LISTEN      721/samba           
+tcp6       0      0 :::49154                :::*                    LISTEN      721/samba           
+tcp6       0      0 :::3268                 :::*                    LISTEN      726/samba           
+tcp6       0      0 :::3269                 :::*                    LISTEN      726/samba           
+tcp6       0      0 :::389                  :::*                    LISTEN      726/samba           
+tcp6       0      0 :::135                  :::*                    LISTEN      721/samba           
+tcp6       0      0 :::464                  :::*                    LISTEN      728/samba           
+udp        0      0 192.168.50.6:389        0.0.0.0:*                           727/samba           
+udp    44928      0 192.168.20.6:389        0.0.0.0:*                           727/samba           
+udp        0      0 0.0.0.0:389             0.0.0.0:*                           727/samba           
+udp        0      0 192.168.50.6:137        0.0.0.0:*                           723/samba           
+udp    46080      0 192.168.50.255:137      0.0.0.0:*                           723/samba           
+udp    24960      0 192.168.20.6:137        0.0.0.0:*                           723/samba           
+udp    40704      0 192.168.20.255:137      0.0.0.0:*                           723/samba           
+udp    40704      0 0.0.0.0:137             0.0.0.0:*                           723/samba           
+udp        0      0 192.168.50.6:138        0.0.0.0:*                           723/samba           
+udp        0      0 192.168.50.255:138      0.0.0.0:*                           723/samba           
+udp        0      0 192.168.20.6:138        0.0.0.0:*                           723/samba           
+udp    44928      0 192.168.20.255:138      0.0.0.0:*                           723/samba           
+udp    44928      0 0.0.0.0:138             0.0.0.0:*                           723/samba           
+udp        0      0 0.0.0.0:464             0.0.0.0:*                           728/samba           
+udp6   19968      0 2600:1700:2b2:1b10::389 :::*                                727/samba           
+udp6       0      0 :::389                  :::*                                727/samba           
+udp6       0      0 2600:1700:2b2:1b10::464 :::*                                728/samba           
+udp6       0      0 :::464                  :::*                                728/samba
+
+tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      724/smbd            
+tcp        0      0 0.0.0.0:139             0.0.0.0:*               LISTEN      724/smbd            
+tcp6       0      0 :::445                  :::*                    LISTEN      724/smbd            
+tcp6       0      0 :::139                  :::*                    LISTEN      724/smbd            
+
+udp        0      0 192.168.50.6:123        0.0.0.0:*                           442/ntpd            
+udp    39936      0 192.168.20.6:123        0.0.0.0:*                           442/ntpd            
+udp        0      0 127.0.0.1:123           0.0.0.0:*                           442/ntpd            
+udp        0      0 0.0.0.0:123             0.0.0.0:*                           442/ntpd            
+udp6       0      0 ::1:123                 :::*                                442/ntpd            
+udp6       0      0 :::123                  :::*                                442/ntpd            
+udp6       0      0 fe80::216:3eff:feb6:123 :::*                                442/ntpd            
+udp6   39936      0 2600:1700:2b2:1b10::123 :::*                                442/ntpd            
+udp6       0      0 fe80::76:ff:fe22:61:123 :::*                                442/ntpd            
+

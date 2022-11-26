@@ -1,0 +1,32 @@
+version: "3.2"
+
+# Samba Active Directory Domain Controller automated test compose file.
+
+# When provisioning master and slave domain controllers, privileged is required.
+# On the slave it is needed to mount the master's sysvol.
+
+services:
+  test-master:
+    image: lochnerr/samba-dc:latest
+    privileged: true
+    command: /usr/local/bin/samba-run
+    restart: "no"
+    hostname: test-master.ad.example.com
+    volumes:
+      - dc1:/var/lib/samba
+    networks:
+      testnet:
+        ipv4_address: 10.30.50.2
+
+volumes:
+  dc1:
+  dc2:
+
+networks:
+  testnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.30.50.0/24
+

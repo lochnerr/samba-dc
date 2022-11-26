@@ -1,0 +1,69 @@
+version: "3.2"
+
+# Samba Active Directory Domain Controller automated test compose file.
+
+services:
+  test-master:
+    image: lochnerr/samba-dc:latest
+    command: ${cmd}
+    privileged: true
+    restart: "no"
+    hostname: test-master.ad.example.com
+    volumes:
+      - dc1:/var/lib/samba
+      - type: tmpfs
+        target: /run
+      - type: tmpfs
+        target: /run/lock
+      - type: tmpfs
+        target: /tmp
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    stop_signal: SIGRTMIN+3
+    networks:
+      - testnet
+
+  # Privileged is needed for slave to allow kill signal on systemd to work.
+  test-slave:
+    image: lochnerr/samba-dc:latest
+    command: ${cmd}
+    privileged: true
+    restart: "no"
+    hostname: test-slave.ad.example.com
+    volumes:
+      - dc2:/var/lib/samba
+      - dc1:/var/lib/master
+      - type: tmpfs
+        target: /run
+      - type: tmpfs
+        target: /run/lock
+      - type: tmpfs
+        target: /tmp
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    stop_signal: SIGRTMIN+3
+    networks:
+      - testnet
+    # Ensure that the master and slave get consistent IP's on restarts.
+    depends_on:
+      - test-master
+
+  sut:
+    image: lochnerr/samba-dc:latest
+    command: /usr/local/bin/samba-tests-sut
+    restart: "no"
+    hostname: sut.ad.example.com
+    volumes:
+      - dc1:/var/lib/samba
+      - dc2:/var/lib/slave
+    networks:
+      - testnet
+    depends_on:
+      - test-master
+      - test-slave
+
+volumes:
+  dc1:
+  dc2:
+
+networks:
+  testnet:
+

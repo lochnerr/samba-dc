@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Setup Samba AD domain controller on a VM or bare metal system (w/o docker).
+
+. bin/samba-configure
+samba_configure
+
+cmd="sudo systemctl start samba-ad-dc"
+[ "$ID" = "ubuntu" ] && cmd="sudo systemctl start samba-runner"
+[ "$ID" = "alpine" ] && cmd="rc-service samba-ad-dc start"
+
+echo "Enter '$cmd' to start the Samba AD domain controller."
+echo "Done!"
+exit 0
+

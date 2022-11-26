@@ -1,0 +1,53 @@
+Testing things to do:
+
+create images (fedora, ubuntu, debian, alpine)
+
+  docker build \
+    -t lochnerr/samba-dc-fedora:29 \
+    --build-arg RELEASE=29 \
+    --build-arg BUILD_TIMESTAMP="$(date '+%y-%m-%d %H:%M:%S')" \
+    --no-cache .
+
+  docker build \
+    -t lochnerr/samba-dc-ububtu:18.04 \
+    --build-arg RELEASE=18.04 \
+    --build-arg BUILD_TIMESTAMP="$(date '+%y-%m-%d %H:%M:%S')" \
+    --no-cache .
+  
+  lochnerr/samba-dc-debian:9.8
+  lochnerr/samba-dc-alpine:3.9
+
+transport images to repository (docker hub?) - must be run on "create images" system.
+
+load images from repository (docker hub?) - must be run on dc vmhost via ssh.
+
+stop container - must be run on dc vmhost via ssh.
+
+rm container - must be run on dc vmhost via ssh.
+
+
+
+
+sudo docker tag docker-io/hello-world lochnerr/test
+sudo docker push lochnerr/test
+
+
+# Retrieve the login command to use to authenticate your Docker client to your registry.
+# Use the AWS CLI:
+
+$(aws ecr get-login --no-include-email --region us-east-1)
+
+# Note: If you receive an "Unknown options: --no-include-email" error when using the AWS CLI, ensure that you have the latest version installed. Learn more 
+# Build your Docker image using the following command. For information on building a Docker file from scratch see the instructions here.
+
+docker build -t samba-dc/fedora .
+
+# After the build completes, tag your image so you can push the image to this repository:
+
+docker tag samba-dc/fedora:latest 552440425059.dkr.ecr.us-east-1.amazonaws.com/samba-dc/fedora:latest
+
+# Run the following command to push this image to your newly created AWS repository:
+
+docker push 552440425059.dkr.ecr.us-east-1.amazonaws.com/samba-dc/fedora:latest
+
+

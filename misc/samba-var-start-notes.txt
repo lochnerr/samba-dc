@@ -1,0 +1,24 @@
+No business here:
+For alpine syslog hack.
+SYSINIT
+Maybe?  Docker TZ is not persistent.
+Could set it in provision and link to it, e.g. 'ln -sf $PRIVATE_DIR/tz /etc/localtime'
+TIMEZONE 5
+
+OK:
+RUN_TESTS
+
+OK, could make local:
+PRIVATE_DIR 4
+BACKEND 7
+
+Locals:
+PROVISIONED 2 - Local
+ETCNAMED - Local
+
+Deleted:
+ID
+HOST_IP 3
+HOST_NAME 2
+DOMAIN 2
+

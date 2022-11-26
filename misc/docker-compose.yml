@@ -1,0 +1,20 @@
+version: "3.2"
+
+services:
+  samba-dc:
+    image: ${REGISTRY_URI:-lochnerr}/samba-dc:latest
+    command: ${cmd}
+    privileged: true
+    restart: "no"
+    hostname: dc1.aws.clone1.com
+    volumes:
+      - /srv/samba:/var/lib/samba
+      - type: tmpfs
+        target: /run
+      - type: tmpfs
+        target: /run/lock
+      - type: tmpfs
+        target: /tmp
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network_mode: "host"
+

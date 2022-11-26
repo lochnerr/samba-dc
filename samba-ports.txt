@@ -1,0 +1,19 @@
+Samba Ports
+
+DNS 				53 	tcp/udp
+Kerberos 			88 	tcp/udp
+ntp	 			123 	udp
+DCE/RPC Locator Service 	135 	tcp
+NetBIOS Name Service 		137 	udp
+NetBIOS Datagram 		138 	udp
+NetBIOS Session 		139 	tcp
+LDAP 				389 	tcp/udp
+SMB over TCP 			445 	tcp
+Kerberos kpasswd	 	464 	tcp/udp
+LDAPS *** 			636 	tcp
+Global Catalog 		3268 	tcp
+Global Catalog SSL *** 	3269 	tcp
+Dynamic RPC Ports	 	49152-65535 	tcp
+
+*** If tls enabled = yes (default) is set in your smb.conf file.
+

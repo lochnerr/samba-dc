@@ -1,0 +1,31 @@
+
+Saturday 11/20
+
+3 Days   1/2 Sat / all sun / all mon / 1/2 tue?
+
+Things I might want to accomplish in Dallas (not Winc)...
+  More wine?  Tue 2-4p
+  Recycling   in car
+  Trash       in car
+
+Winc real priorities...
+  Getting Samba mirror and upgrade.
+  tftp boot
+
+
+Winc things...
+  Fix VM Bootstrap
+  tftp boot (Want this so I can remote update)
+    tftp server - easy
+    dhcp options - hmmm
+      global options
+      
+  
+  Make DC2 domain master
+  DC3 join domain
+  Create new DC1 Bootstrap VM
+  Make DC1 domain master  
+
+
+
+

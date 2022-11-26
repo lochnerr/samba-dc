@@ -1,0 +1,42 @@
+/etc
+lrwxrwxrwx.  1 root root      30 May 19 12:11 localtime -> /usr/share/zoneinfo/US/Central
+
+lrwxrwxrwx.  1 root root      14 May 19 12:11 named -> /srv/etc/named
+lrwxrwxrwx.  1 root root      14 May 19 12:11 samba -> /srv/etc/samba
+
+/var
+lrwxrwxrwx. 1 root root    14 May 19 12:11 named -> /srv/var/named
+drwxrwx--T. 5 root named 4096 May 19 12:11 named-bak
+
+/var/lib
+lrwxrwxrwx. 1 root    root      18 May 19 12:11 samba -> /srv/var/lib/samba
+
+
+  STATEDIR=/var/lib/samba
+    /var/lib/samba/config <- /etc/samba
+      smb.conf
+      krb5.conf           /etc/samba/ <- /etc/krb5.conf
+      dhcpduser.keytab    <- /etc/dhcpduser.keytab
+    /var/lib/samba/named  <- /var/named
+
+
+# Run it...
+-v /srv/samba/var:/var/lib/samba \
+-v /srv/samba/etc:/etc/samba \
+
+
+BASE="/srv/samba"
+BASE="$(pwd)/samba"
+
+mkdir -p "$BASE/etc"
+mkdir -p "$BASE/var/named"
+
+cp -a /var/lib/samba/  $BASE/var
+cp -a /etc/samba/      $BASE/etc
+
+
+chronyd/ntpd
+named/samba
+dhcpd
+
+

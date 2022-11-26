@@ -1,0 +1,244 @@
+#!/bin/sh
+
+run_em() {
+
+  compose="${compose:-docker-compose.test.yml}"
+
+  make
+  export cmd="${cmd:-/sbin/init}"
+  echo "cmd is: $cmd"
+  docker-compose -f $compose down
+  docker volume rm samba-dc_dc1 samba-dc_dc2
+  echo "up, baby"
+  docker-compose -f $compose up 2>&1 | tee -a misc/run-em.log
+  # Redo after provisioning
+  echo "down, baby"
+  docker-compose -f $compose down
+  echo "up again, baby"
+  docker-compose -f $compose up 2>&1 | tee -a misc/run-em.log
+
+}
+
+run_em_docker() {
+
+  # Note: This does work with Docker on all linux flavors.
+
+  docker=podman
+  testnet=slirp4netns
+  IMAGE_NAME=lochnerr/samba-dc
+
+  docker=docker
+  testnet=testnet
+  IMAGE_NAME=lochnerr/samba-dc
+
+  #make
+  $docker build \
+    --build-arg VCS_REF=`git rev-parse --short HEAD` \
+    --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
+    --tag=$IMAGE_NAME .
+
+###
+if [ "1" = "2" ]; then
+ln -sf Dockerfile-alpine Dockerfile
+sudo docker stop test-master >/dev/null 2>&1 || true
+sudo docker rm test-master >/dev/null 2>&1 || true
+sudo docker volume rm dc1 dc2 >/dev/null 2>&1 || true
+sudo docker volume create dc1 || true
+sudo make
+sudo docker run -d  --rm --name test-master -v dc1:/var/lib/samba --network=testnet --hostname test-master.ad.example.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest
+sudo docker exec -it test-master /bin/bash
+fi
+###
+
+  #docker-compose -f docker-compose.test.yml down
+  $docker stop test-master >/dev/null 2>&1 || true
+  $docker stop test-slave  >/dev/null 2>&1 || true
+  $docker stop sut         >/dev/null 2>&1 || true
+
+  $docker rm test-master >/dev/null 2>&1 || true
+  $docker rm test-slave  >/dev/null 2>&1 || true
+  $docker rm sut         >/dev/null 2>&1 || true
+
+
+  #docker volume rm samba-dc_dc1 samba-dc_dc2
+  $docker volume rm dc1 dc2 >/dev/null 2>&1 || true
+  $docker volume create dc1 || true
+  $docker volume create dc2 || true
+
+  sudo rm -rf /srv/samba
+  sudo mkdir - /srv/samba
+  cat | sudo tee /srv/samba/samba-vars <<-__EOF__
+	DOMAIN="aws.clone1.com"
+	WORKGROUP="CLONE-AWS"
+	HOST_NAME="dc1"
+	HOST_IP="10.66.1.135"
+	BACKEND="BIND9_DLZ"
+	DNS_FORWARDERS=
+	MASTER_IP="10.66.1.135"
+	TIMEZONE="US/Central"
+	BIND_INTERFACES_ONLY="yes"
+	INTERFACES="lo ens5"
+
+	SLAVE_JOIN_DELAY="2"
+	HOST_NAME="dc2"
+	HOST_IP="10.66.2.131"
+	__EOF__
+
+  cat > /var/lib/samba/samba-vars <<-__EOF__
+	DOMAIN="aws.clone1.com"
+	WORKGROUP="CLONE-AWS"
+	HOST_NAME="dc1"
+	HOST_IP="10.66.1.135"
+	BACKEND="BIND9_DLZ"
+	DNS_FORWARDERS=
+	MASTER_IP="10.66.1.135"
+	TIMEZONE="US/Central"
+	BIND_INTERFACES_ONLY="yes"
+	INTERFACES="lo ens5"
+
+	SLAVE_JOIN_DELAY="2"
+	HOST_NAME="dc2"
+	HOST_IP="10.66.2.131"
+	__EOF__
+
+samba-tool domain join AWS.CLONE1.COM DC \
+      -UAdministrator --password=Passw0rd \
+      --dns-backend=BIND9_DLZ \
+      --option="bind interfaces only=yes" \
+      --option="interfaces=lo ens5" \
+      --option="idmap_ldb:use rfc2307 = yes"
+
+  sudo docker run -it  --rm --name dc1 -v /srv/samba:/var/lib/samba --network=host --hostname dc1.aws.clone1.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest bash
+
+  sudo docker run -it  --rm --name dc2 -v /srv/samba:/var/lib/samba --network=host --hostname dc2.aws.clone1.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest bash
+
+  sudo docker run -d  --rm --name dc1 -v /srv/samba:/var/lib/samba --network=host --hostname dc1.aws.clone1.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest
+
+  : sudo docker run -d  --rm --name test-master -v dc1:/var/lib/samba --network=testnet --hostname test-master.ad.example.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest $cmd
+
+  : sudo docker run -d  --rm --name test-slave -v dc2:/var/lib/samba --network=testnet --hostname test-slave.ad.example.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest $cmd
+
+
+  #docker-compose -f docker-compose.test.yml up 2>&1 | tee -a misc/run-em.log
+  $docker run -d  --name test-master -v dc1:/var/lib/samba --network=$testnet --hostname test-master.ad.example.com --privileged \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest $cmd
+  $docker run -d  --name test-slave  -v dc2:/var/lib/samba --network=$testnet --hostname  test-slave.ad.example.com \
+     --tmpfs /run --tmpfs /run/lock --tmpfs /tmp -v /sys/fs/cgroup:/sys/fs/cgroup:ro --stop-signal=SIGRTMIN+3 \
+     lochnerr/samba-dc:latest $cmd
+  $docker run -it --rm --name sut         -v dc1:/var/lib/samba --network=$testnet --hostname         sut.ad.example.com \
+     -v dc2:/var/lib/slave \
+     lochnerr/samba-dc:latest /usr/local/bin/samba-tests-sut 2>&1 | tee -a misc/run-em.log
+
+  ###if [ -z "$cmd" ]; then
+    # If running in systemd, the containers need to be stopped!
+    echo "Stopping containers."
+    $docker stop test-master >/dev/null 2>&1 || true
+    $docker stop test-slave  >/dev/null 2>&1 || true
+    $docker rm test-master >/dev/null 2>&1 || true
+    $docker rm test-slave  >/dev/null 2>&1 || true
+  ###fi
+
+  # Redo after provisioning
+
+  #docker-compose -f docker-compose.test.yml up 2>&1 | tee -a misc/run-em.log
+  $docker run -d  --rm --name test-master -v dc1:/var/lib/samba --network=$testnet --hostname test-master.ad.example.com \
+     lochnerr/samba-dc:latest $cmd
+  $docker run -d  --rm --name test-slave  -v dc2:/var/lib/samba --network=$testnet --hostname  test-slave.ad.example.com \
+     lochnerr/samba-dc:latest $cmd
+  $docker run -it --rm --name sut         -v dc1:/var/lib/samba --network=$testnet --hostname         sut.ad.example.com \
+     -v dc2:/var/lib/slave \
+     lochnerr/samba-dc:latest /usr/local/bin/samba-tests-sut 2>&1 | tee -a misc/run-em.log
+}
+
+echo >misc/run-em.log
+
+#$docker network rm testnet >/dev/null 2>&1 || true
+#$docker network create testnet >/dev/null 2>&1
+
+runner="run_em"
+#runner="run_em_docker"
+
+####compose="docker-compose-systemd.yml"
+
+#1 0 0 docker-compose-systemd.yml  /sbin/init                 ok
+#0 0 1 docker-compose-systemd.yml  /usr/local/bin/samba-run   ok
+#3 1 0 docker-compose.test.yml     /sbin/init                 n/a
+#2 1 1 docker-compose.test.yml     /usr/local/bin/samba-run   should run, but not running.
+#4     docker plain                /sbin/init                 ok
+#5     docker plain                /usr/local/bin/samba-run   ok
+
+cmd="/usr/local/bin/samba-run"
+# Run-em with initsys.
+######cmd=
+
+echo ">>>>>>> fedora <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-fedora Dockerfile
+##$runner
+
+echo ">>>>>>> ubuntu  <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-ubuntu Dockerfile
+##$runner
+
+echo ">>>>>>> alpine <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-alpine Dockerfile
+$runner
+
+if [ "$1" = "all" ]; then
+
+# Run-em without initsys.
+
+cmd="/usr/local/bin/samba-run"
+
+echo ">>>>>>> fedora <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-fedora Dockerfile
+$runner
+
+echo ">>>>>>> ubuntu <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-ubuntu Dockerfile
+$runner
+
+echo ">>>>>>> alpine <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-alpine Dockerfile
+$runner
+
+## Note: Debian:9 master works.  Unable to provision slave, fails with:
+# DNS backend changed to: BIND9_DLZ.
+# Reading domain information
+# DNS accounts already exist
+# No zone file /var/lib/samba/private/dns/AD.EXAMPLE.COM.zone
+# DNS records will be automatically created
+# DNS partitions already exist
+# Adding dns-test-slave account
+# Traceback (most recent call last):
+#    File "/usr/sbin/samba_upgradedns", line 433, in <module>
+#      "DNSNAME" : dnsname }
+#    File "/usr/lib/python2.7/dist-packages/samba/provision/common.py", line 55, in setup_add_ldif
+#      ldb.add_ldif(data, controls)
+#    File "/usr/lib/python2.7/dist-packages/samba/__init__.py", line 225, in add_ldif
+#      self.add(msg, controls)
+#  _ldb.LdbError: (53, '../source4/dsdb/samdb/ldb_modules/ridalloc.c:556:
+#     No RID Set DN - Request for remote creation of RID Set for this DC failed: Failed to send MSG_DREPL_ALLOCATE_RID, unable to locate dreplsrv')
+##
+
+##ln -sf Dockerfile-debian Dockerfile
+##$runner
+
+fi
+
+docker-compose -f docker-compose.test.yml down
+echo ">>>>>>> Done!! <<<<<<<<<" >>misc/run-em.log
+ln -sf Dockerfile-fedora Dockerfile
+

@@ -1,0 +1,96 @@
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> UBUNTU 18.04
+01-Jun-2019 14:31:47.373 database: info: samba_dlz: shutting down
+01-Jun-2019 14:32:03.785 database: info: samba_dlz: shutting down
+01-Jun-2019 14:32:09.967 database: info: samba_dlz: starting transaction on zone samba.internal
+01-Jun-2019 14:32:09.967 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:09.967 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:09.968321 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:09.968366+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=nstest.samba.internal tcpaddr=172.17.0.2 type=A key=1813487303.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:09.968 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:09.969 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:09.969007 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:09.969 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:09.969024+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:09.969 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=nstest.samba.internal tcpaddr=172.17.0.2 type=A key=1813487303.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:09.971 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+
+
+
+
+
+
+
+
+01-Jun-2019 14:32:09.971 database: info: samba_dlz: added rdataset nstest.samba.internal 'nstest.samba.internal.	3600	IN	A	172.17.0.250'
+01-Jun-2019 14:32:09.971 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:09.971 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:09.972 database: info: samba_dlz: subtracted rdataset samba.internal 'samba.internal.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 1 900 600 86400 3600'
+01-Jun-2019 14:32:09.972 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:09.972 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:09.972 database: info: samba_dlz: added rdataset samba.internal 'samba.internal.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 2 900 600 86400 3600'
+01-Jun-2019 14:32:10.026 database: info: samba_dlz: committed transaction on zone samba.internal
+01-Jun-2019 14:32:10.043 database: info: samba_dlz: starting transaction on zone 0.17.172.in-addr.arpa
+01-Jun-2019 14:32:10.044 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:10.044 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:10.044 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:10.044 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:10.047 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:10.047493 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:10.047 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:10.047580+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=250.0.17.172.in-addr.arpa tcpaddr=172.17.0.2 type=PTR key=3441020618.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:10.048623 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:10.048645+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:10.048 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=250.0.17.172.in-addr.arpa tcpaddr=172.17.0.2 type=PTR key=3441020618.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:10.050 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.050 database: info: samba_dlz: added rdataset 250.0.17.172.in-addr.arpa '250.0.17.172.in-addr.arpa.	3600	IN	PTR	nstest.samba.internal.'
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: subtracted rdataset 0.17.172.in-addr.arpa '0.17.172.in-addr.arpa.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 2 900 600 86400 3600'
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.051 database: info: samba_dlz: added rdataset 0.17.172.in-addr.arpa '0.17.172.in-addr.arpa.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 3 900 600 86400 3600'
+01-Jun-2019 14:32:10.112 database: info: samba_dlz: committed transaction on zone 0.17.172.in-addr.arpa
+01-Jun-2019 14:32:10.129 database: info: samba_dlz: starting transaction on zone samba.internal
+01-Jun-2019 14:32:10.130 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:10.130 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:10.130 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:10.130 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:10.131 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:10.131084 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:10.131 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:10.131140+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:10.131 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=nstest.samba.internal tcpaddr=172.17.0.2 type=A key=4196719823.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:10.132 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.132 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.133 database: info: samba_dlz: subtracted rdataset nstest.samba.internal 'nstest.samba.internal.	3600	IN	A	172.17.0.250'
+01-Jun-2019 14:32:10.134 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.134 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.134 database: info: samba_dlz: subtracted rdataset samba.internal 'samba.internal.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 2 900 600 86400 3600'
+01-Jun-2019 14:32:10.134 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.135 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.135 database: info: samba_dlz: added rdataset samba.internal 'samba.internal.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 3 900 600 86400 3600'
+01-Jun-2019 14:32:10.208 database: info: samba_dlz: committed transaction on zone samba.internal
+01-Jun-2019 14:32:10.225 database: info: samba_dlz: starting transaction on zone 0.17.172.in-addr.arpa
+01-Jun-2019 14:32:10.225 database: info: samba_dlz: Starting GENSEC mechanism spnego
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: Starting GENSEC submechanism gssapi_krb5
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: gensec_gssapi: NO credentials were delegated
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: GSSAPI Connection will be cryptographically sealed
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: Successful AuthZ: [(null),krb5] user [SAMBA]\[dhcpduser] [S-1-5-21-3258489379-130966771-1003830948-1104] at [Sat, 01 Jun 2019 14:32:10.226295 UTC] Remote host [NULL] local host [NULL]
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: JSON Authorization: {"timestamp": "2019-06-01T14:32:10.226318+0000", "type": "Authorization", "Authorization": {"version": {"major": 1, "minor": 0}, "localAddress": "NULL", "remoteAddress": "NULL", "serviceDescription": null, "authType": "krb5", "domain": "SAMBA", "account": "dhcpduser", "sid": "S-1-5-21-3258489379-130966771-1003830948-1104", "logonServer": "24407494193A", "transportProtection": "SEAL", "accountFlags": "0x00000210"}}
+01-Jun-2019 14:32:10.226 database: info: samba_dlz: allowing update of signer=dhcpduser\@SAMBA.INTERNAL name=250.0.17.172.in-addr.arpa tcpaddr=172.17.0.2 type=PTR key=3431096549.sig-24407494193a.samba.internal/160/0
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: subtracted rdataset 250.0.17.172.in-addr.arpa '250.0.17.172.in-addr.arpa.	3600	IN	PTR	nstest.samba.internal.'
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.227 database: info: samba_dlz: subtracted rdataset 0.17.172.in-addr.arpa '0.17.172.in-addr.arpa.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 3 900 600 86400 3600'
+01-Jun-2019 14:32:10.228 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.228 database: info: samba_dlz: ../source4/dsdb/common/util.c:3711: WARNING: domainFunctionality not setup
+01-Jun-2019 14:32:10.231 database: info: samba_dlz: added rdataset 0.17.172.in-addr.arpa '0.17.172.in-addr.arpa.	3600	IN	SOA	24407494193a.samba.internal. hostmaster.samba.internal. 4 900 600 86400 3600'
+01-Jun-2019 14:32:10.299 database: info: samba_dlz: committed transaction on zone 0.17.172.in-addr.arpa
+

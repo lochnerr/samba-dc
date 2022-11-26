@@ -1,0 +1,73 @@
+
+Technologies that I have working:
+
+arm Host O/S: KVM -> ubuntu-20.04.2-preinstalled-server-arm64+raspi.img  Xen -> TBD
+x86 Host O/S: KVM -> Fedora-Bootstrap-KVM-x86_64-XX.iso                  Xen -> Fedora-Bootstrap-Live-x86_64-XX.iso
+
+0 4 8 12 16
+               pi          wincxen           vrrp
+vmh2/1  vmhost  192.168.20.10  192.168.20.9
+gw2/1   router  192.168.20.3   192.168.20.2    192.168.20.1
+dc2/1   dns/sam 192.168.20.7   192.168.20.5    redundant
+dhcp2/1 dhcp    192.168.20.14  192.168.20.13   redundant     ( cannot be a non-root container: --net host for ip subnets )
+ntp2/1  ntp     192.168.20.18  192.168.20.17   dual path     ( could be a non-root podman container )
+wg2/1   wg      192.168.20.22  192.168.20.21   dual path     ( alpine vm? )
+
+arm VM O/S:   KVM -> ubuntu-20.04-server-cloudimg-arm64.raw              Xen -> ubuntu-20.04-server-cloudimg-arm64.raw (No PVH)
+x86 VM O/S:   KVM -> Fedora-Cloud-Base-XX-1.2.x86_64.raw                 Xen -> ubuntu-20.04-server-cloudimg-amd64.raw (PVH)
+
+SAMBA:   socat -d -d TCP4-LISTEN:15432,fork                        UNIX-CONNECT:/var/lib/samba/ntp_signd/socket
+Chrony:  socat -d -d UNIX-LISTEN:/var/lib/samba/ntp_signd/socket   TCP4-CONNECT:x.x.x.x:15432
+
+What is minimally needed to make progress with samba on pi?
+  A VMHost (cloud image) with bootstrap.
+    - amd64: live-xen-fedora
+    - arm64: ubuntu-20.04.2-preinstalled-server-arm64+raspi.img with bootstrap.
+  Get a VM bootstrap image working.
+    VM bootstrap images.
+    4
+    5 DC1 wincxen/samba-dc (VM DC1)
+    6 DC2 wincxen/samba-dc (VM DC2)
+    7 DC3 pi/samba-dc      (VM DC3) (ubuntu-20.04-server-cloudimg-$arch.raw)
+    
+      System  pi            wincxen
+      VM-1:   20.7:dns2     20.5:dns1
+        dns/sam (socat ntp socket)
+      VM-2:   20.15:ntp2    20.14:ntp1
+        chronyd (socat socket)
+      VM-3:   20.11:dhcp2   20.10:dhcp1
+        dhcp
+  --
+  wg
+  router
+
+aarch64 (pi):
+  kvm:
+    firecracker (custom kernel + custom rootfs)
+      weaveworks ignite
+      cloud-hypervisor
+    qemu (libvirt)
+      cloud images
+  xen:
+    some day maybe
+  containers:
+    podman
+    docker
+
+x86_64:
+  kvm:
+    firecracker (custom kernel + custom rootfs)
+      - try custom kernel + std cloud image rootfs + cidata volume (fat32)
+    kvm (qemu/libvirt):
+      cloud images
+  xen:
+    pvh with grub-i386-xen_pvh.bin:
+      ubuntu cloud image 20.04
+    hvm (qemu/libvirt):
+      cloud images
+  containers:
+    podman
+    docker
+
+
+

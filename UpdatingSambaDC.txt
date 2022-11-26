@@ -1,0 +1,138 @@
+
+Updating an online Samba Active Domain Controller pair.
+
+# shutdown dc2 container on dc2: 
+sudo systemctl stop controller-dc2
+sudo systemctl disable controller-dc2
+# Make sure the controller is down on dc2:
+sudo podman rm -f dc2
+# force demote dc2 on dc1:
+sudo exec --rm -it dc1 /usr/local/bin/demote-active-directory-controller dc2
+sudo exec --rm -it dc1 samba-tool dbcheck --cross-ncs [--fix]
+# create new samba_dc container image on dc2:
+sudo podman build -t lochnerr/samba-dc .
+# provision it dc2:
+sudo MASTER_IP="192.168.33.3" /usr/local/bin/example-provisioning
+# When you are sure the provisioning is complete, restart the vm on dc2:
+sudo systemctl reboot
+# ssh into the rebooted vm on dc2host:
+ssh dc2-clone
+# Transfer fsmo roles from dc1 to dc2 on dc2:
+sudo exec --rm -it dc2 /usr/local/bin/transfer-fmso-roles
+
+# Make a backup of the sysvol on dc1:
+
+
+shutdown dc1 container: 
+dc1:       sudo systemctl stop controller-dc1
+dc1:       sudo systemctl disable controller-dc1
+Make sure the controller is down:
+dc1:       sudo podman rm -f dc1
+demote dc1 on dc2 (i.e. forced):
+dc2:       sudo exec --rm -it dc2 /usr/local/bin/demote-active-directory-controller dc1
+dc2:       sudo exec --rm -it dc2 samba-tool dbcheck --cross-ncs [--fix]
+create new dc1 samba_dc container image:
+dc1:       sudo podman build -t lochnerr/samba-dc .
+provision it:
+dc1:       sudo MASTER_IP="192.168.33.xxx" /usr/local/bin/example-provisioning
+When you are sure the provisioning is complete, restart the vm:
+dc1:       sudo systemctl reboot
+Transfer fsmo roles back from dc2 to dc1:
+dc1host:   ssh dc1-clone
+dc1:       sudo exec --rm -it dc1 /usr/local/bin/transfer-fmso-roles
+
+
+
+shutdown dc1 container
+demote dc2 on dc1 (i.e. forced)
+do dbcheck --fix on dc1
+create new dc2 samba_dc container image
+provision it (MASTER_IP = dc_temp)
+restart the vm (should bring up the service)
+
+
+
+
+
+
+
+Starting with two good domain controllers dc1 and dc2.
+Create a dc3.
+Join it to the domain.
+Log into the new dc3 controller.
+copy the sysvol???
+Transfer the FSMO roles.
+  /usr/local/bin/samba-transfer-fsmo-roles [force]
+    samba-tool fsmo transfer --role=...
+    samba-tool fsmo seize    --role=...
+Log out of the dc3
+Log into dc1
+Demote the domain controller
+  /usr/local/bin/samba-demote-controller
+Destroy the domain controller (or container)
+Create an updated VM/container dc1.
+Join it to the domain.
+Log into the new dc1 controller.
+copy the sysvol???
+Transfer the FSMO roles.
+  /usr/local/bin/samba-transfer-fsmo-roles
+Log out of the dc1
+Log into dc2
+Demote the domain controller
+  /usr/local/bin/samba-demote-controller
+Destroy the domain controller (or container)
+Create an updated VM/container dc2.
+Join it to the domain.
+Log into dc3
+Demote the domain controller
+  /usr/local/bin/samba-demote-controller
+Destroy the domain controller (or container)
+Done!
+
+If the domain controller (DC) to remove is still working correctly:
+
+- Log in locally to the DC to demote.
+-   ssh dc1.ad.wincretail.com
+-   podman exec -it samba-dc bash
+- Verify that the DC does not own any flexible single master operations (FSMO) roles.
+-   samba-tool fsmo showSchema
+-     MasterRole owner:               CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     InfrastructureMasterRole owner: CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     RidAllocationMasterRole owner:  CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     PdcEmulationMasterRole owner:   CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     DomainNamingMasterRole owner:   CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     DomainDnsZonesMasterRole owner: CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+-     ForestDnsZonesMasterRole owner: CN=NTDS Settings,CN=DC1,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=ad,DC=wincretail,DC=com
+- If the DC owns one or more FSMO roles, transfer them to a different DC.
+-   Log on to the DC, that should be the new owner of the role you want to transfer.
+-     ssh dc2.ad.wincretail.com
+-     podman exec -it samba-dc bash
+-       Transfer the role to the DC, by executing the following command:
+-         samba-tool fsmo transfer --role=...
+          samba-tool fsmo seize    --role=...
+-   Verify the transfer
+-     samba-tool fsmo show
+
+Optionally, display the objectGUID of the DC. For example, for the DC2 host:
+# ldbsearch -H /usr/local/samba/private/sam.ldb '(invocationId=*)' --cross-ncs objectguid | grep -A1 DC2
+dn: CN=NTDS Settings,CN=DC2,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=samdom,DC=example,DC=com
+objectGUID: c14a774f-9732-4ec2-b9fa-2156c95c4e48
+If you want to verify that all DNS entries were deleted ater you demoted the DC, you need to know the host name, IP address, and the objectGUID of the DC.
+Demote the DC:
+# samba-tool domain demote -Uadministrator
+Using DC1.samdom.example.com as partner server for the demotion
+Password for [SAMDOM\administrator]:
+Deactivating inbound replication
+Asking partner server DC1.samdom.example.com to synchronize from us
+Changing userControl and container
+Removing Sysvol reference: CN=DC2,CN=Enterprise,CN=Microsoft System Volumes,CN=System,CN=Configuration,DC=samdom,DC=example,DC=com
+Removing Sysvol reference: CN=DC2,CN=samdom.example.com,CN=Microsoft System Volumes,CN=System,CN=Configuration,DC=samdom,DC=example,DC=com
+Removing Sysvol reference: CN=DC2,CN=Domain System Volumes (SYSVOL share),CN=File Replication Service,CN=System,DC=samdom,DC=example,DC=com
+Removing Sysvol reference: CN=DC2,CN=Topology,CN=Domain System Volume,CN=DFSR-GlobalSettings,CN=System,DC=samdom,DC=example,DC=com
+Demote successful
+Stop the samba service.
+If this DC ran a DNS service for the Active Directory (AD) zones:
+stop the DNS service, if you used the BIND9_DLZ DNS back end.
+verify that domain members and DCs do no longer use this host to resolve the AD DNS zones.
+
+

@@ -4,8 +4,8 @@
 
 install_packages_fedora() {
 
-  dnf -y upgrade
-  dnf -y install --nodocs \
+  : dnf -y upgrade
+  : dnf -y install --nodocs \
         samba-dc \
         samba-client \
         samba-winbind \
@@ -24,6 +24,14 @@ install_packages_fedora() {
         nmap \
         findutils \
         traceroute
+  dnf -y install --nodocs \
+        samba \
+        samba-dc \
+        samba-client \
+        krb5-workstation \
+        samba-dc-bind-dlz \
+        bind \
+        bind-utils
   dnf -y clean all
 }
 
@@ -125,9 +133,7 @@ samba_configure() {
     if [ "$CONTAINER" = "false" ]; then
       echo "Native (non-container) setup for Fedora."
 
-      # Copy the systemd samba service.
-      cp -a samba-ad-dc.service /usr/lib/systemd/system/
-
+      if [ "a" = "b" ]; then
       # Disable unnecessary service(s).
       disable_service systemd-resolved
 
@@ -150,12 +156,19 @@ samba_configure() {
 
       # Get rid of the link created by systemd-resolved service.
       [ -L /etc/resolv.conf ] && rm -f /etc/resolv.conf || true
+      fi
+
+      # See: https://fedoramagazine.org/samba-as-ad-and-domain-controller/
+      setsebool -P samba_create_home_dirs=on samba_domain_controller=on samba_enable_home_dirs=on samba_portmapper=on use_samba_home_dirs=on
+      #restorecon -Rv /
+
+      cp samba-ad-dc.service /usr/lib/systemd/system/
 
       # This is required for named to "memory map" files.
       setsebool  domain_can_mmap_files 1
 
       # Disable SELinux for provisioning.
-      setenforce 0
+      #setenforce 0
     else
       # Disable unnecessary container services.
       systemctl mask dnf-makecache.timer \
