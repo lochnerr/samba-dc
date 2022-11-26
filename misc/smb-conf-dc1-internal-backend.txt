@@ -1,169 +1,93 @@
-samba-tool domain provision  --server-role=dc  --use-rfc2307  --dns-backend=BIND9_DLZ  --realm=AD.CLONE1.COM  --domain=AD  --adminpass=Passw0rd
+be="internal"
+be1="SAMBA_INTERNAL"
+be2="BIND9_DLZ"
+rm -rf lib/$be
+mkdir -p lib/$be
+cd lib/$be
+touch dummy-file
+git add .
+git commit -m "initial $be commit"
+cd ../..
+sudo podman run \
+  --name dc1 \
+  --rm \
+  --privileged \
+  -e BACKEND="$be1" \
+  -v $(pwd)/lib/${be}:/var/lib/samba \
+  --hostname dc1.ad.clone1.com \
+  -it lochnerr/samba-dc bash
+rm -f /etc/samba
+rm -f /etc/krb5.conf
+echo "Backend is $BACKEND."
 ################################
-# Global parameters
-[global]
-	netbios name = DC1
-	realm = AD.CLONE1.COM
-	server role = active directory domain controller
-	server services = s3fs, rpc, nbt, wrepl, ldap, cldap, kdc, drepl, winbindd, ntp_signd, kcc, dnsupdate
-	workgroup = AD
-	idmap_ldb:use rfc2307 = yes
-[sysvol]
-	path = /var/lib/samba/sysvol
-	read only = No
-
-[netlogon]
-	path = /var/lib/samba/sysvol/ad.clone1.com/scripts
-	read only = No
+# samba-tool domain provision  --server-role=dc  --use-rfc2307  --dns-backend=$BACKEND  --realm=AD.CLONE1.COM  --domain=AD  --adminpass=Passw0rd
 ################################
-# ls -lR /var/lib/samba
-/var/lib/samba:
-total 412
-drwxrwx---. 1 root named          64 Nov 26 12:18 bind-dns
-drwxrwxr-x. 1 root printadmin      0 Oct 26 12:31 drivers
-drwxr-xr-x. 1 root root           58 Nov 26 12:18 lock
-drwx------. 1 root root          360 Nov 26 12:18 private
--rw-------. 1 root root       421888 Nov 26 12:18 share_info.tdb
-drwxrwx---+ 1 root    3000000     26 Nov 26 12:18 sysvol
-drwxr-x---. 1 root wbpriv          0 Oct 26 12:31 winbindd_privileged
-
-/var/lib/samba/bind-dns:
-total 12
-drwxrwx---. 1 root named   32 Nov 26 12:18 dns
--rw-r-----. 2 root named  457 Nov 26 12:18 dns.keytab
--rw-r--r--. 1 root root  1074 Nov 26 12:18 named.conf
--rw-r--r--. 1 root root  2051 Nov 26 12:18 named.txt
-
-/var/lib/samba/bind-dns/dns:
-total 3536
--rw-rw----. 1 root named 3620864 Nov 26 12:18 sam.ldb
-drwxrwx---. 1 root named     444 Nov 26 12:18 sam.ldb.d
-
-/var/lib/samba/bind-dns/dns/sam.ldb.d:
-total 27756
--rw-rw----. 1 root named  7196672 Nov 26 12:18 'CN=CONFIGURATION,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 1 root named 10129408 Nov 26 12:18 'CN=SCHEMA,CN=CONFIGURATION,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 1 root named  1286144 Nov 26 12:18 'DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named  4694016 Nov 26 12:18 'DC=DOMAINDNSZONES,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named  4694016 Nov 26 12:18 'DC=FORESTDNSZONES,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named   421888 Nov 26 12:18  metadata.tdb
-
-/var/lib/samba/drivers:
-total 0
-
-/var/lib/samba/lock:
-total 448
--rw-r--r--. 1 root root 454656 Nov 26 12:18 gencache.tdb
-drwxr-xr-x. 1 root root      0 Nov 26 12:18 msg.lock
--rw-r-----. 1 root root    696 Nov 26 12:18 names.tdb
-
-/var/lib/samba/lock/msg.lock:
-total 0
-
-/var/lib/samba/private:
-total 11312
--rw-r-----. 2 root named     457 Nov 26 12:18 dns.keytab
--rw-r--r--. 1 root root     3663 Nov 26 12:18 dns_update_list
--rw-------. 1 root root       16 Nov 26 12:18 encrypted_secrets.key
--rw-------. 1 root root  1286144 Nov 26 12:18 hklm.ldb
--rw-------. 1 root root  1286144 Nov 26 12:18 idmap.ldb
--rw-r--r--. 1 root root      656 Nov 26 12:18 kdc.conf
--rw-r--r--. 1 root root      193 Nov 26 12:18 krb5.conf
-drwx------. 1 root root        0 Nov 26 12:18 msg.sock
--rw-------. 1 root root  1286144 Nov 26 12:18 privilege.ldb
--rw-------. 1 root root  4694016 Nov 26 12:18 sam.ldb
-drwx------. 1 root root      444 Nov 26 12:18 sam.ldb.d
--rw-------. 1 root root      662 Nov 26 12:18 secrets.keytab
--rw-------. 1 root root  1286144 Nov 26 12:18 secrets.ldb
--rw-------. 1 root root   430080 Nov 26 12:18 secrets.tdb
--rw-------. 1 root root  1286144 Nov 26 12:18 share.ldb
--rw-r--r--. 1 root root      955 Nov 26 12:18 spn_update_list
-drwxr-xr-x. 1 root root        0 Nov 26 12:18 tls
-
-/var/lib/samba/private/msg.sock:
-total 0
-
-/var/lib/samba/private/sam.ldb.d:
-total 30292
--rw-------. 1 root root  7340032 Nov 26 12:18 'CN=CONFIGURATION,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-------. 1 root root  9175040 Nov 26 12:18 'CN=SCHEMA,CN=CONFIGURATION,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-------. 1 root root  4694016 Nov 26 12:18 'DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named 4694016 Nov 26 12:18 'DC=DOMAINDNSZONES,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named 4694016 Nov 26 12:18 'DC=FORESTDNSZONES,DC=AD,DC=CLONE1,DC=COM.ldb'
--rw-rw----. 2 root named  421888 Nov 26 12:18  metadata.tdb
-
-/var/lib/samba/private/tls:
-total 0
-
-/var/lib/samba/sysvol:
-total 0
-drwxrwx---+ 1 root 3000000 30 Nov 26 12:18 ad.clone1.com
-
-/var/lib/samba/sysvol/ad.clone1.com:
-total 0
-drwxrwx---+ 1 root 3000000 152 Nov 26 12:18 Policies
-drwxrwx---+ 1 root 3000000   0 Nov 26 12:18 scripts
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies:
-total 0
-drwxrwx---+ 1 3000004 3000004 36 Nov 26 12:18 {31B2F340-016D-11D2-945F-00C04FB984F9}
-drwxrwx---+ 1 3000004 3000004 36 Nov 26 12:18 {6AC1786C-016F-11D2-945F-00C04FB984F9}
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}:
-total 4
--rwxrwx---+ 1 3000004 3000004 20 Nov 26 12:18 GPT.INI
-drwxrwx---+ 1 3000004 3000004  0 Nov 26 12:18 MACHINE
-drwxrwx---+ 1 3000004 3000004  0 Nov 26 12:18 USER
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/MACHINE:
-total 0
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/USER:
-total 0
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{6AC1786C-016F-11D2-945F-00C04FB984F9}:
-total 4
--rwxrwx---+ 1 3000004 3000004 20 Nov 26 12:18 GPT.INI
-drwxrwx---+ 1 3000004 3000004  0 Nov 26 12:18 MACHINE
-drwxrwx---+ 1 3000004 3000004  0 Nov 26 12:18 USER
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{6AC1786C-016F-11D2-945F-00C04FB984F9}/MACHINE:
-total 0
-
-/var/lib/samba/sysvol/ad.clone1.com/Policies/{6AC1786C-016F-11D2-945F-00C04FB984F9}/USER:
-total 0
-
-/var/lib/samba/sysvol/ad.clone1.com/scripts:
-total 0
-
-/var/lib/samba/winbindd_privileged:
-total 0
+# cat /etc/samba/smb.conf
 ################################
-# ls -lR /var/lib/samba
-/var/lib/samba:
-total 0
-drwxrwx---. 1 root named      0 Oct 26 12:23 bind-dns
-drwxrwxr-x. 1 root printadmin 0 Oct 26 12:31 drivers
-drwxr-xr-x. 1 root root       0 Oct 26 12:39 lock
-drwx------. 1 root root       0 Oct 26 12:39 private
-drwxr-xr-x. 1 root root       0 Oct 26 12:31 sysvol
-drwxr-x---. 1 root wbpriv     0 Oct 26 12:31 winbindd_privileged
+cp /etc/samba/smb.conf /var/lib/samba/smb.conf-generated
+exit
+cd lib/$be
+git add .
+git status
+################################
+################################
+git commit -m "after provisioning $be1"
+cd ../..
+sudo podman run \
+  --name dc1 \
+  --rm \
+  --privileged \
+  -e BACKEND="$be2" \
+  -v $(pwd)/lib/${be}:/var/lib/samba \
+  --hostname dc1.ad.clone1.com \
+  -it lochnerr/samba-dc bash
+rm -f /etc/samba
+mkdir /etc/samba
+cp /var/lib/samba/smb.conf-generated /etc/samba/smb.conf 
+################################
+# samba_upgradedns --dns-backend=$BACKEND
+################################
+cp /etc/samba/smb.conf /var/lib/samba/smb.conf-generated
+exit
+cd lib/$be
+git add .
+git status
+################################
+################################
+git commit -m "after change to $be2"
+cd ../..
+sudo podman run \
+  --name dc1 \
+  --rm \
+  --privileged \
+  -e BACKEND="$be1" \
+  -v $(pwd)/lib/${be}:/var/lib/samba \
+  --hostname dc1.ad.clone1.com \
+  -it lochnerr/samba-dc bash
+rm -f /etc/samba
+mkdir /etc/samba
+cp /var/lib/samba/smb.conf-generated /etc/samba/smb.conf 
+################################
+# samba_upgradedns --dns-backend=$BACKEND
+################################
+cp /etc/samba/smb.conf /var/lib/samba/smb.conf-generated
+exit
+git add .
+git status
+################################
+################################
+git commit -m "after changing back to $be1"
+################################
+So, the easiest way to determine the current backend is:
 
-/var/lib/samba/bind-dns:
-total 0
+# This file only gets created when the provisioning the BIND9_DLZ backend.
+# samba_upgradedns will delete this file when changing to the internal backend with 'samba_upgradedns --dns-backend=SAMBA_INTERNAL'.
+if [ -f "${STATEDIR}/bind-dns/dns.keytab" ]; then
+  echo "Samba is configured to use the BIND9_DLZ backend."
+fi
 
-/var/lib/samba/drivers:
-total 0
 
-/var/lib/samba/lock:
-total 0
 
-/var/lib/samba/private:
-total 0
 
-/var/lib/samba/sysvol:
-total 0
 
-/var/lib/samba/winbindd_privileged:
-total 0
 
