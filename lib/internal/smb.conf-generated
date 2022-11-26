@@ -1,0 +1,16 @@
+# Global parameters
+[global]
+	dns forwarder = 192.168.33.254
+	netbios name = DC1
+	realm = AD.CLONE1.COM
+	server role = active directory domain controller
+	workgroup = AD
+	idmap_ldb:use rfc2307 = yes
+
+[sysvol]
+	path = /var/lib/samba/sysvol
+	read only = No
+
+[netlogon]
+	path = /var/lib/samba/sysvol/ad.clone1.com/scripts
+	read only = No
