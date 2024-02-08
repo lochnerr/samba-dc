@@ -1,4 +1,4 @@
-FROM fedora:36
+FROM fedora:39
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -15,6 +15,8 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # samba-dc-bind-dlz - required to use the BIND9_DLZ backend.
 # krb5-workstation - required by samba.
 # bind - named (required to use the BIND9_DLZ backend)
+# chrony - allows timesync support
+# dhcp-server - allows dhcpd support
 # bind-utils - host (used in provisioning and automated tests)
 # iproute - ip (used in provisioning and automated tests)
 # tdb-tools - tdbbackup (used to create backup of idmap)
@@ -39,6 +41,8 @@ RUN dnf -y install --nodocs \
         samba-dc-bind-dlz \
         krb5-workstation \
         bind \
+        chrony \
+        dhcp-server \
         bind-utils \
         iproute \
         tdb-tools \
