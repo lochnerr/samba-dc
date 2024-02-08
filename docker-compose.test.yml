@@ -9,6 +9,7 @@ services:
 
   test-master:
     image: lochnerr/samba-dc:latest
+    #command: /usr/local/bin/samba-run
     privileged: true
     restart: "no"
     hostname: test-master.ad.example.com
@@ -21,6 +22,7 @@ services:
 
   test-slave:
     image: lochnerr/samba-dc:latest
+    #command: /usr/local/bin/samba-run
     privileged: true
     restart: "no"
     hostname: test-slave.ad.example.com
