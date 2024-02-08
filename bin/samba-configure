@@ -2,6 +2,8 @@
 
 # samba-configure: Build time configuration for samba-dc.
 
+# Note: This script is only used in the build process.
+
 install_packages_fedora() {
 
   : dnf -y upgrade
@@ -120,13 +122,29 @@ samba_configure() {
 
   . samba-get-paths
 
-  echo "Linking /etc/samba to the persistent config directory."
-  [ -d /etc/samba ] && mv /etc/samba /etc/samba-bak
-  ln -s ${STATEDIR}/config /etc/samba
+  if [ -d /etc/samba ]; then
+    echo "Saving the original /etc/samba directory."
+    mv /etc/samba /etc/samba-bak
+  fi
+  mkdir -p /etc/samba
 
-  echo "Linking /var/named to the persistent directory."
-  [ -d /var/named ] && mv /var/named /var/named-bak
-  ln -s ${STATEDIR}/named /var/named
+  if [ -d /var/named ]; then
+    echo "Saving the original /var/named directory."
+    mv /var/named /var/named-bak
+  fi
+  mkdir -p /var/named
+
+  if [ -d /etc/dhcp ]; then
+    echo "Saving the original /etc/dhcp directory."
+    mv /etc/dhcp /etc/dhcp-bak
+  fi
+  mkdir -p /etc/dhcp
+
+  if [ -d /var/lib/dhcpd ]; then
+    echo "Saving the original /var/lib/dhcpd directory."
+    mv /var/lib/dhcpd /var/lib/dhcpd-bak
+  fi
+  mkdir -p /var/lib/dhcpd
 
   case $ID in
   fedora)
