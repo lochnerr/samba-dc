@@ -176,7 +176,7 @@ BIND_GROUP="$(id $BIND_USER -gn)"
 [ -r $STATEDIR/samba-vars ] && . $STATEDIR/samba-vars 
 
 # Determine if running under init system (systemd or openRC).
-INITPROC="$(ps aux | egrep '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])')"
+INITPROC="$(ps aux | grep -E '([ ]*[ ]1[ ]*root|root.*[ ]1[ ])')"
 SYSINIT="false"
 [ -n "$(echo $INITPROC | grep /sbin/init )" ] && SYSINIT="true"
 [ -n "$(echo $INITPROC | grep /lib/systemd/systemd )" ] && SYSINIT="true"
