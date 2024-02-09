@@ -84,6 +84,18 @@ fixup_named_access() {
 
 # Start
 
+# If the domain is not ad.example.com, this is not a system unit test run.
+# If it is not a system unit test run, and it has not been provisioned, and
+# 'systemd' is the first argument indicating it is running under systemd,
+# just exit.  Let the user configure the system.
+if [ "$(hostname -d 2>/dev/null || true)" != "ad.example.com" ]; then
+  # Not running system unit tests.
+  if [ ! -f /var/lib/samba/private/krb5.conf ]; then
+    # Samba has not been provisioned, so exit if systemd.
+    [ "$1" = "systemd" ] && exit 0
+  fi
+fi
+
 # Utils provide start_service and restart functions.
 . samba-utils
 

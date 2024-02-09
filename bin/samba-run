@@ -12,7 +12,7 @@ STATEDIR="$(smbd -b | grep STATEDIR | awk '{print $2}')"
 rm -f $STATEDIR/cmd
 
 # Start the samba server with logging.
-samba-start 2>&1 | tee -a $STATEDIR/samba-startup.log
+samba-start $1 2>&1 | tee -a $STATEDIR/samba-startup.log
 
 # Now switch to the wait process.
 exec samba-wait
