@@ -196,5 +196,6 @@ else
 fi
 
 # Determine the dns backend (SAMBA_INTERNAL or BIND9_DLZ).
-BACKEND="$(cat $STATEDIR/backend 2>/dev/null || :)"
+[ -e $STATEDIR/backend ] && BACKEND="$(cat $STATEDIR/backend 2>/dev/null || :)"
+true # DO NOT REMOVE THIS. It prevents an early exit error in bash.
 

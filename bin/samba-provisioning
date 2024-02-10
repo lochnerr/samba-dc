@@ -20,7 +20,12 @@ provision() {
 
     [ "${USE_RFC2307}" = "yes" ] && rfc2307_setting="--use-rfc2307"
 
-    echo "Provisioning domain '$DOMAIN'."
+    echo "Provisioning domain '$DOMAIN' using SAMBA_INTERNAL backend."
+
+    # It is not manditory to provision a first Samba AD controller with the SAMBA_INTERNAL backend, but for
+    # consistency with the provisioning of additional controllers, do it anyway.  That is the most common
+    # way it is done and, certainly, the most well-tested scenario.  Given that there are known problems
+    # (as recently as 2024) provisioning additional controllers with the BIND9_DLZ backend, this seems prudent.
 
     #  --host-name=$HOST_NAME \
     samba-tool domain provision \
@@ -28,13 +33,13 @@ provision() {
       --realm=$REALM \
       --domain=$WORKGROUP \
       --adminpass=$PASSWORD \
-      --dns-backend=$BACKEND \
+      --dns-backend=SAMBA_INTERNAL \
       --option="bind interfaces only=${BIND_INTERFACES_ONLY:-no}" \
       --option="interfaces=${INTERFACES:-lo eth0}" \
       ${rfc2307_setting}
 
     # Record the provisioned backend.
-    echo "$BACKEND" >$STATEDIR/backend
+    echo "SAMBA_INTERNAL" >$STATEDIR/backend
 
   else
 
@@ -117,6 +122,12 @@ provision() {
 
   # Backup the samba-tool generated smb.conf file.
   cp -p /etc/samba/smb.conf /etc/samba/smb.conf.bak
+
+  # Note: If you are joining a new DC the 'nameserver' you set in '/etc/resolv.conf' must be another AD DC,
+  # otherwise the join will not be work. Once the new join has succeeded, you need to change the 'nameserver'
+  # to the new DCs ipaddress, do not use '127.0.0.1' or any other IP.
+  # See: https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Configuring_the_DNS_Resolver
+  # And: https://wiki.samba.org/index.php/Joining_a_Samba_DC_to_an_Existing_Active_Directory
 
   # Create a docker persistent hosts file.
   cat > /etc/hosts <<-__EOF__
@@ -261,8 +272,13 @@ post_provisioning() {
 
   # Export the dhcpd user keytab.
   if samba-tool domain exportkeytab --principal=dhcpduser@$REALM $PRIVATE_DIR/dhcpduser.keytab ; then
-    # Change permissions on the dhcpduser keytab.
-    chmod 400 $PRIVATE_DIR/dhcpduser.keytab
+    # Note: If there is no dhcpduser defined, no error is returned and no keytab file is created.
+    if [ -e $PRIVATE_DIR/dhcpduser.keytab ]; then
+      # Change permissions on the dhcpduser keytab.
+      chmod 400 $PRIVATE_DIR/dhcpduser.keytab
+    else
+      echo "Warning: exportkeytab for dhcpduser failed, continuing anyway!"
+    fi
   else
     echo "Warning: exportkeytab for dhcpduser failed, continuing anyway!"
   fi
