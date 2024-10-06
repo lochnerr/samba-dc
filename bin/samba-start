@@ -196,6 +196,15 @@ if [ "$BACKEND" = "BIND9_DLZ" ]; then
   echo "Running 'named-checkconf'."
   named-checkconf
 
+  if [ -e /etc/sysconfig/named ]; then
+    # The DLZ bind backend began crashing due to a memory fault starting with fedora 39.
+    # This patch works and has been tested against: 38 - 4.18.11, 39 - 4.19.8, & 40 - 4.20.5.
+    if ! grep -q LDB_MODULES_DISABLE_DEEPBIND /etc/sysconfig/named 2>/dev/null ; then
+      echo "Patching redhat workaround for https://bugzilla.redhat.com/show_bug.cgi?id=2278016#c20"
+      echo "# Path for: https://bugzilla.redhat.com/show_bug.cgi?id=2278016#c20" >>/etc/sysconfig/named
+      echo 'LDB_MODULES_DISABLE_DEEPBIND="1"' >>/etc/sysconfig/named
+    fi
+  fi
   start_service named
 
   # Wait for named to fully start.
