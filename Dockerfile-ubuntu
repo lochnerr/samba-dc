@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -11,27 +11,26 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # Manditory packages:
 # samba - the samba domain controller
 # smbclient - smbclient (required for automated tests).
-# krb5-config - required by samba.
-# krb5-user - required by samba.
 # winbind - required by samba.
 # libpam-winbind - required by samba.
 # libnss-winbind - required by samba.
+# krb5-config - required by samba.
+# krb5-user - required by samba.
 # libpam-krb5 - required by samba.
 # bind9 - named (required to use the BIND9_DLZ backend)
 # bind9utils - host (used in provisioning and automated tests)
 # dnsutils - nsupdate (used in automated tests)
 # iproute2 - ip (used in provisioning and automated tests)
+# tdb-tools - tdbbackup (used to create backup of idmap)
+# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # socat - socat (used for automated tests)
 # systemd-container - systemd for containers.
 
 # Useful packages for debugging:
-# tdb-tools - tdbbackup (used to create backup of idmap)
-# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # wget - wget (used to get current named.cache file from internet)
+# iputils-ping - ping
 # net-tools - ifconfig, hostname (used in samba-set-vars)
 # tzdata - time zones (allows setting time zone)
-# Useful packages for debugging:
-# iputils-ping - ping
 # vim - vi
 # inetutils-traceroute - traceroute
 # nmap - nmap
@@ -40,24 +39,24 @@ RUN apt-get -y update \
  && DEBIAN_FRONTEND=noninteractive apt-get -y install \
         samba \
         smbclient \
-        krb5-config \
-        krb5-user \
         winbind \
         libpam-winbind \
         libnss-winbind \
+        krb5-config \
+        krb5-user \
         libpam-krb5 \
         bind9 \
         bind9utils \
         dnsutils \
         iproute2 \
-        socat \
-        systemd-container \
         tdb-tools \
         cifs-utils \
+        socat \
+        systemd-container \
         wget \
+        iputils-ping \
         net-tools \
         tzdata \
-        iputils-ping \
         vim \
         inetutils-traceroute \
         nmap

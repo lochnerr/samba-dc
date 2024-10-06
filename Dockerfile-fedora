@@ -1,4 +1,4 @@
-FROM fedora:39
+FROM fedora:40
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -15,24 +15,22 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # samba-dc-bind-dlz - required to use the BIND9_DLZ backend.
 # krb5-workstation - required by samba.
 # bind - named (required to use the BIND9_DLZ backend)
-# chrony - allows timesync support
-# dhcp-server - allows dhcpd support
-# bind-utils - host (used in provisioning and automated tests)
+# bind-utils - host & nsupdate (used in provisioning and automated tests)
 # iproute - ip (used in provisioning and automated tests)
 # tdb-tools - tdbbackup (used to create backup of idmap)
 # cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # procps-ng - ps (Needed to determine if running under systemd)
-# wget - wget (used to get current named.cache file from internet)
 # hostname - hostname (used in samba-set-vars)
 # socat - socat (used for system unit tests)
 # systemd-container - systemd for containers.
 
 # Useful packages for debugging:
+# wget - wget (used to get current named.cache file from internet)
 # iputils - ping
 # net-tools - ifconfig
-# nmap - nmap
 # findutils - find
 # traceroute - traceroute
+# nmap - nmap
 
 RUN dnf -y install --nodocs \
         samba-dc \
@@ -41,22 +39,21 @@ RUN dnf -y install --nodocs \
         samba-dc-bind-dlz \
         krb5-workstation \
         bind \
-        chrony \
-        dhcp-server \
         bind-utils \
         iproute \
         tdb-tools \
         cifs-utils \
         procps-ng \
-        wget \
         hostname \
         socat \
         systemd-container \
+        wget \
         iputils \
         net-tools \
-        nmap \
         findutils \
-        traceroute && \
+        traceroute \
+        nmap \
+        && \
     dnf -y clean all && \
     # Empty the yum cache.
     rm -rf /var/cache/dnf && \
