@@ -52,7 +52,7 @@ set_samba_vars() {
   BIND_INTERFACES_ONLY="${BIND_INTERFACES_ONLY:-yes}"
   [ -z "$INTERFACES" ] && INTERFACES="lo ${HOST_IFACE:-eth0}"
   USE_RFC2307=${USE_RFC2307:-yes}
-  BACKEND="$(echo ${BACKEND:-BIND9_DLZ} | tr 'a-z' 'A-Z')"
+  BACKEND="$(echo ${BACKEND:-SAMBA_INTERNAL} | tr 'a-z' 'A-Z')"
   # If the backend is not BIND9_DLZ, it must be SAMBA_INTERNAL.
   [ "$BACKEND" != "BIND9_DLZ" ] && BACKEND="SAMBA_INTERNAL"
   PASSWORD="${PASSWORD:-Passw0rd}"
