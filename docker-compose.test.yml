@@ -8,7 +8,7 @@ version: "2"
 services:
 
   test-master:
-    image: lochnerr/samba-dc:latest
+    image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
     #command: /usr/local/bin/samba-run
     privileged: true
     restart: "no"
@@ -21,7 +21,7 @@ services:
         ipv6_address: fdb1:ac90:835d:72c::2
 
   test-slave:
-    image: lochnerr/samba-dc:latest
+    image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
     #command: /usr/local/bin/samba-run
     privileged: true
     restart: "no"
@@ -34,7 +34,11 @@ services:
         ipv6_address: fdb1:ac90:835d:72c::3
 
   sut:
-    image: lochnerr/samba-dc:latest
+    build:
+      dockerfile: Dockerfile-${DISTRO:-fedora}
+      args:
+        RELEASE: ${RELEASE:-latest}
+    image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
     command: /usr/local/bin/samba-tests-sut
     restart: "no"
     hostname: sut.ad.example.com
