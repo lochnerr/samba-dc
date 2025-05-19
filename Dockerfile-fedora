@@ -1,4 +1,5 @@
-FROM fedora:40
+ARG RELEASE
+FROM systemd:fedora-$RELEASE
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -19,10 +20,11 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # iproute - ip (used in provisioning and automated tests)
 # tdb-tools - tdbbackup (used to create backup of idmap)
 # cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
-# procps-ng - ps (Needed to determine if running under systemd)
+# procps-ng - ps (Needed to determine if running under systemd, from systemd image)
 # hostname - hostname (used in samba-set-vars)
+# gawk - awk (previously included prior to fedora 42)
 # socat - socat (used for system unit tests)
-# systemd-container - systemd for containers.
+# systemd-container - systemd for containers (from systemd image).
 
 # Useful packages for debugging:
 # wget - wget (used to get current named.cache file from internet)
@@ -43,10 +45,9 @@ RUN dnf -y install --nodocs \
         iproute \
         tdb-tools \
         cifs-utils \
-        procps-ng \
         hostname \
+        gawk \
         socat \
-        systemd-container \
         wget \
         iputils \
         net-tools \

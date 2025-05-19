@@ -174,8 +174,7 @@ test_samba() {
     # Login test, retry if necessary.
     test="smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -c 'ls'"
     for try in $(seq -s ' ' 1 3) ; do
-      echo "$PASSWORD" | kinit Administrator
-      smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -c 'ls' 2>&1
+      echo "$PASSWORD" | smbclient //${HOST_NAME}.${DOMAIN}/netlogon -U administrator -c 'ls' 2>&1
       rc="$?"
       if [ "$rc" != "0" ]; then
         echo "Retrying login test ($try)."

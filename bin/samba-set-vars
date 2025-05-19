@@ -11,9 +11,11 @@ set_samba_vars() {
 
   # Automated testing setup.
   hname="$(hostname -s)"
+  save="$MASTER_IP"
   if [ "$hname" = "test-master" -o "$hname" = "test-slave" -o "$hname" = "sut" ]; then
-    HOST_IP="$(ip route get 8.8.8.8 | awk -F'src ' 'NR==1{split($2,a," ");print a[1]}')"
+    HOST_IP="$(ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d '/' -f 1)"
     MASTER_IP="$(host -t A test-master | grep 'has address' | cut -d ' ' -f 4)"
+    [ -z "$MASTER_IP" ] && MASTER_IP="$save"
   fi
 
   local fwd=""

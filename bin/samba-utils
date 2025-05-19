@@ -30,7 +30,7 @@ set_service_options() {
     set_or_append_option /etc/sysconfig/named OPTIONS        "$NAMEDOPTIONS"
     set_or_append_option /etc/sysconfig/named KRB5RCACHETYPE "none"
     ;;
-  ubuntu)
+  ubuntu | debian)
     set_or_append_option /etc/default/samba   SAMBAOPTIONS   "$SAMBAOPTIONS"
     [ -z "$(echo '$NAMEDOPTIONS' | grep '-u' - 2>/dev/null || :)" ] && NAMEDOPTIONS="-u $BIND_USER $NAMEDOPTIONS"
     svc="bind9"
@@ -65,7 +65,7 @@ start_service() {
     if [ "$ID" = "alpine" ]; then
       /sbin/rc-service $1 start
     else
-      if [ "$ID" = "ubuntu" ]; then
+      if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
         svc="bind9"
         [ -e /etc/default/named ] && svc="named"
         [ "$1" = "samba" ] && svc="samba-ad-dc"
@@ -98,7 +98,7 @@ stop_service() {
     if [ "$ID" = "alpine" ]; then
       /sbin/rc-service $1 stop || :
     else
-      if [ "$ID" = "ubuntu" ]; then
+      if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
         svc="bind9"
         [ -e /etc/default/named ] && svc="named"
         [ "$1" = "samba" ] && svc="samba-ad-dc"

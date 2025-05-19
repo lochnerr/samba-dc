@@ -305,7 +305,7 @@ append_run_options() {
     . /etc/sysconfig/named
     NAMEDOPTIONS="$OPTIONS"
     ;;
-  ubuntu)
+  ubuntu | debian)
     [ -r /etc/default/samba ] && . /etc/default/samba
     # The bind9 service was renamed named.
     [ -e /etc/default/bind9 ] && . /etc/default/bind9

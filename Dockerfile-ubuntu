@@ -1,4 +1,6 @@
-FROM ubuntu:24.04
+ARG DISTRO
+ARG RELEASE
+FROM systemd:$DISTRO-$RELEASE
 
 LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
       org.label-schema.name = "samba-dc" \
@@ -24,7 +26,7 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # tdb-tools - tdbbackup (used to create backup of idmap)
 # cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # socat - socat (used for automated tests)
-# systemd-container - systemd for containers.
+# systemd-container - systemd for containers (from systemd image).
 
 # Useful packages for debugging:
 # wget - wget (used to get current named.cache file from internet)
@@ -52,7 +54,6 @@ RUN apt-get -y update \
         tdb-tools \
         cifs-utils \
         socat \
-        systemd-container \
         wget \
         iputils-ping \
         net-tools \

@@ -112,7 +112,7 @@ samba_configure() {
     # Copy the script files and other artifacts.
     cp -a bin/. /usr/local/bin/
     [ "$ID" = "fedora" ] && install_packages_fedora
-    [ "$ID" = "ubuntu" ] && install_packages_ubuntu
+    [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ] && install_packages_ubuntu
     [ "$ID" = "alpine" ] && install_packages_alpine
   else
     echo "Building container, skipping package installs."
@@ -212,7 +212,7 @@ samba_configure() {
     # Enable the systemd samba service.
     systemctl enable samba-ad-dc.service
     ;;
-  ubuntu)
+  ubuntu | debian)
     if [ "$CONTAINER" = "false" ]; then
       echo "Native (non-container) setup for Ubuntu."
 
