@@ -3,58 +3,58 @@
 # demote-active-directory-controller: Script to demote a samba active directory controller.
 
 if [ "$(id -u)" != "0" ]; then
-  echo "Must be root!"
-  exit 1
+	echo "Must be root!"
+	exit 1
 fi
 
-this_host="$(hostname -s | tr 'a-z' 'A-Z')"
-target="$(echo $1 | tr 'a-z' 'A-Z')"
-[ -z "$target" ] && target="$this_host"
+this_host="$(hostname -s | tr '[:lower:]' '[:upper:]')"
+target="$(echo "${1}" | tr '[:lower:]' '[:upper:]')"
+[ -z "${target}" ] && target="${this_host}"
 
-echo "The domain controller to be demoted is: ${target}."
-echo "This host is: ${this_host}."
+echo "Info: The domain controller to be demoted is: ${target}."
+echo "Info: This host is: ${this_host}."
 
 echo
-echo "These are the Current FSMO Role Owners:"
+echo "Info: These are the Current FSMO Role Owners:"
 samba-tool fsmo show | grep "Settings,CN="
 
 echo 
-echo "Checking to see if the controller to be demoted is a Current FSMO Role Owner."
+echo "Info: Checking to see if the controller to be demoted is a Current FSMO Role Owner."
 
 has_fsmo_role="false"
 for i in $(samba-tool fsmo show | cut -d ',' -f2 | cut -d '=' -f2) ; do
-  t="$(echo $i | tr 'a-z' 'A-Z')"
-  if [ "$t" = "$target" ]; then
-    has_fsmo_role="true"
-    break
-  fi
+	t="$(echo "${i}" | tr '[:lower:]' '[:upper:]')"
+	if [ "${t}" = "${target}" ]; then
+		has_fsmo_role="true"
+		break
+	fi
 done
 
-if [ "$has_fsmo_role" = "true" ]; then
-  echo "Unable to continue, $target is an Owner of one or more Current FSMO Roles."
-  echo "These Roles must be transferred to another controller prior to demoting this controller."
-  exit 1
+if [ "${has_fsmo_role}" = "true" ]; then
+	echo "Error: Unable to continue, ${target} is an Owner of one or more Current FSMO Roles."
+	echo "These Roles must be transferred to another controller prior to demoting this controller."
+	exit 1
 else
-  echo "$target is not the Owner of any Current FSMO Roles."
+	echo "Info: ${target} is not the Owner of any Current FSMO Roles."
 fi
 
 echo
-if [ "$target" = "$this_host" ]; then
-  echo "Demoting this online controller."
-  samba-tool domain demote -Uadministrator
+if [ "${target}" = "${this_host}" ]; then
+	echo "Info: Demoting this online controller."
+	samba-tool domain demote -Uadministrator
 else
-  echo "The target controller to be demoted is not this controller."
-  echo
-  echo "Looking up the objectGUID of the target controller (${target})."
-  LDB_MODULES_PATH=/usr/lib64/samba/ldb ldbsearch -H /var/lib/samba/private/sam.ldb '(invocationId=*)' --cross-ncs objectguid | grep -A1 $target
-  echo 
-  echo "Executing: samba-tool domain demote --remove-other-dead-server=$target" 
-  samba-tool domain demote --remove-other-dead-server=$target
-  echo
-  echo "It is recommended to do a database check now to see if there are dangling references to the demoted controller:"
-  echo "samba-tool dbcheck --cross-ncs"
-  echo "See: https://wiki.samba.org/index.php/Dbcheck"
-  echo 
+	echo "Info: The target controller to be demoted is not this controller."
+	echo
+	echo "Looking up the objectGUID of the target controller (${target})."
+	LDB_MODULES_PATH=/usr/lib64/samba/ldb ldbsearch -H /var/lib/samba/private/sam.ldb '(invocationId=*)' --cross-ncs objectguid | grep -A1 "${target}"
+	echo
+	echo Executing: samba-tool domain demote --remove-other-dead-server="${target}" 
+	samba-tool domain demote --remove-other-dead-server="${target}"
+	echo
+	echo "It is recommended to do a database check now to see if there are dangling references to the demoted controller:"
+	echo "samba-tool dbcheck --cross-ncs"
+	echo "See: https://wiki.samba.org/index.php/Dbcheck"
+	echo 
 fi
 
 echo "Done!"
