@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# demote-active-directory-controller: Script to demote a samba active directory controller.
+# samba-demote-dc: Script to demote a samba active directory controller.
 
 if [ "$(id -u)" != "0" ]; then
 	echo "Must be root!"
@@ -11,28 +11,21 @@ this_host="$(hostname -s | tr '[:lower:]' '[:upper:]')"
 target="$(echo "${1}" | tr '[:lower:]' '[:upper:]')"
 [ -z "${target}" ] && target="${this_host}"
 
+echo
 echo "Info: The domain controller to be demoted is: ${target}."
 echo "Info: This host is: ${this_host}."
 
-echo
-echo "Info: These are the Current FSMO Role Owners:"
-samba-tool fsmo show | grep "Settings,CN="
-
 echo 
 echo "Info: Checking to see if the controller to be demoted is a Current FSMO Role Owner."
+echo
 
-has_fsmo_role="false"
-for i in $(samba-tool fsmo show | cut -d ',' -f2 | cut -d '=' -f2) ; do
-	t="$(echo "${i}" | tr '[:lower:]' '[:upper:]')"
-	if [ "${t}" = "${target}" ]; then
-		has_fsmo_role="true"
-		break
-	fi
-done
-
-if [ "${has_fsmo_role}" = "true" ]; then
-	echo "Error: Unable to continue, ${target} is an Owner of one or more Current FSMO Roles."
-	echo "These Roles must be transferred to another controller prior to demoting this controller."
+cn="$(echo "${target}" | cut -d . -f 1)"
+if samba-tool fsmo show | grep -q "Settings,CN=${cn}" 2>&1 ; then
+	echo "Info: The server to be demoted (${target}) owns the following FSMO Roles:"
+	echo
+	samba-tool fsmo show | grep "Settings,CN=${cn}" | cut -d : -f 1
+	echo
+	echo "Error: These Roles must be transferred to another controller."
 	exit 1
 else
 	echo "Info: ${target} is not the Owner of any Current FSMO Roles."
@@ -41,6 +34,7 @@ fi
 echo
 if [ "${target}" = "${this_host}" ]; then
 	echo "Info: Demoting this online controller."
+	echo
 	samba-tool domain demote -Uadministrator
 else
 	echo "Info: The target controller to be demoted is not this controller."
@@ -54,9 +48,9 @@ else
 	echo "It is recommended to do a database check now to see if there are dangling references to the demoted controller:"
 	echo "samba-tool dbcheck --cross-ncs"
 	echo "See: https://wiki.samba.org/index.php/Dbcheck"
-	echo 
 fi
 
+echo
 echo "Done!"
 
 exit 0
