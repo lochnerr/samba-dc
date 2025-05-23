@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# samba-wipe: Wipe Samba AD DC files from a demoted server (Useful for testing).
+
+set -e
+
+if [ 0 != "$(id -u)" ]; then
+	echo "Must be root!"
+	exit 1
+fi
+
+dir="/var/lib/samba"
+
+if [ ! -e $dir/private/krb5.conf ]; then
+	echo "Error: $dir/private/krb5.conf not found."
+	echo "Was Samba configured on this machine?"
+	exit 1
+fi
+
+rm -f /etc/samba/smb.conf
+[ -e /etc/samba/smb.conf.orig ] && mv /etc/samba/smb.conf.orig /etc/samba/smb.conf
+
+sudo find  $dir -type f -print | grep ".db$" |
+while read -r file ; do
+	echo "Removing: $file"
+done
+
+rm -f $dir/private/krb5.conf
+
+echo "Done!"
+
