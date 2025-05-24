@@ -87,15 +87,15 @@ post_provisioning() {
 			part="${part}${sep}DC=${p}"
 			sep=","
 		done
-		if [ -z "${PARTNER_FQDN}" ]; then
-			return
-		fi
 
-		# Parameters that worked:     dest            source                <naming context>
+		# Parameters that worked:     source          dest                  <naming context>
 		#                             --------------- --------------------- -------------------------
-		#    samba-tool drs replicate 192.168.122.176 t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com1
-		echo samba-tool drs replicate "${HOST_IP}" "${PARTNER_FQDN}" "${part}"
-		if ! samba-tool drs replicate "${HOST_IP}" "${PARTNER_FQDN}" "${part}" ; then
+		#    samba-tool drs replicate T-DC2           T-DCT                 dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.6   T-DCT                 dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.6   t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.176 t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
+		echo samba-tool drs replicate "${PARTNER_IP}" "${HOST}" "${part}"
+		if ! samba-tool drs replicate "${PARTNER_IP}" "${HOST}" "${part}" ; then
 			echo "Replication failed, continuing anyway!"
 		else
 			echo "Replication succeeded!"
@@ -126,7 +126,6 @@ HOST_IP="$(ip a show "${INTERFACE}" | grep 'inet ' | awk '{print $2}' | cut -d /
 [ "${1}" = "join" ] && [ -z "${2}" ] && err="true"
 
 PARTNER_IP="${2}"
-PARTNER_FQDN="${3}"
 
 if [ -n "${err}" ]; then
 	cat <<-__EOD__
@@ -299,13 +298,20 @@ systemctl start ${samba}
 post_provisioning
 
 cat <<-__EOD__
+
 Things to check now that the ${mode} is complete:
 
-/etc/systemd/resolved.conf: Verify the stub listener is disabled.
-resolvectl: Check the search and dns.
-smb.conf: Verify there is a forwarder in the config.
-network config: Verify the dns address and search.
+Verify the stub listener is disabled.
+Verify there is a forwarder in the config.
+Check the search and dns.
+Verify the dns address and search.
 
+grep -v "^#" /etc/systemd/resolved.conf
+grep forwarder /etc/samba/smb.conf
+resolvectl
+nmcli conn show "cloud-init enp1s0" | grep dns
+host "\$(hostname -s)"
+host "\$(host \$(hostname -s) | awk '{print \$4}')"
 __EOD__
 
 echo "Done!"
