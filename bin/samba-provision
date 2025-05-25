@@ -297,6 +297,12 @@ systemctl start ${samba}
 
 post_provisioning
 
+if samba-tool dbcheck --cross-ncs ; then
+	echo "Info: Samba dbcheck completed successfully!"
+else
+	echo "Warning: Samba dbcheck failed!"
+fi
+
 cat <<-__EOD__
 
 Things to check now that the ${mode} is complete:

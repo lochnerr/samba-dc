@@ -1,0 +1,131 @@
+#!/bin/sh
+
+# samba-transfer-fsmo: Transfer FSMO Roles to a Samba Active Directory Domain Controller.
+
+if [ -z "${1}" ] || [ "${1}" = "--help" ]; then
+	cat <<-__EOD__
+	
+	Format: $(basename "${0}") <from host short name>
+
+	This script transfers FSMO Roles from a source DC to this one.
+
+	__EOD__
+	exit 1
+fi
+
+if [ "$(id -u)" != "0" ]; then
+	echo "Must be root!"
+	exit 1
+fi
+
+source="$(echo "${1}" | tr '[:lower:]' '[:upper:]')"
+
+echo
+echo "Info: The source DC is: ${source}."
+echo
+
+cn="$(echo "${source}" | cut -d . -f 1)"
+if samba-tool fsmo show | grep -q "Settings,CN=${cn}" 2>&1 ; then
+	[ -e ./password.txt ] && PASSWORD="$(head -1 ./password.txt)"
+	if [ -z "${PASSWORD}" ]; then
+		echo "Error: A password for the administrator is required."
+		echo
+		echo "This may be set by creating a text file './password.txt' with password on the first line."
+		exit 1
+	fi
+	samba-tool fsmo show | grep "Settings,CN=${cn}" | cut -d : -f 1 |
+	while read -r line ; do
+		role=
+		echo "${line}" | grep -q ^Schema         && role=schema
+		echo "${line}" | grep -q ^Infrastructure && role=infrastructure
+		echo "${line}" | grep -q ^RidAllocation  && role=rid
+		echo "${line}" | grep -q ^PdcEmulation   && role=pdc
+		echo "${line}" | grep -q ^DomainNaming   && role=naming
+		echo "${line}" | grep -q ^DomainDnsZones && role=domaindns
+		echo "${line}" | grep -q ^ForestDnsZones && role=forestdns
+		if [ -z "${role}" ]; then
+			echo "Error: Internal error role not identified."
+			exit 1
+		fi
+		echo samba-tool fsmo transfer --role="${role}"  -U administrator
+		samba-tool fsmo transfer --role="${role}" -U administrator <./password.txt
+		echo
+	done
+else
+	echo "Warning: The source (${source}) does not appear to own any FSMO Roles."
+fi
+
+echo
+echo "Done!"
+
+exit 0
+
+####
+## The following seems to have worked, but it is tedious.
+####
+
+# Initial provisioning...
+T-DC1: 
+sudo ./samba-provision provision
+T-DC2: 
+sudo ./samba-provision join 192.168.122.5
+
+#    *** T-DC2 ***
+
+# Mirror T-DCT with T-DC2 and transfer roles.
+T-DCT:
+sudo ./samba-provision join 192.168.122.5
+sudo ./samba-transfer-roles T-DC2
+# Demote T-DC2
+T-DC2:
+sudo ./samba-demote-dc
+sudo poweroff
+# Build and start 'new' T-DC2 image
+virtmgr:
+cp -a T-DC2-bak.qcow2 T-DC2.qcow2
+sudo virsh start T-DC2
+ssh admin@192.168.122.6
+
+# Mirror T-DC2 with T-DCT and transfer roles.
+T-DC2:
+sudo ./samba-provision join 192.168.122.7
+sudo ./samba-transfer-roles T-DCT
+# Demote T-DCT
+T-DCT:
+sudo ./samba-demote-dc
+sudo poweroff
+# Build and start 'new' T-DCT image
+virtmgr:
+cp -a T-DCT-bak.qcow2 T-DCT.qcow2
+sudo virsh start T-DCT
+ssh admin@192.168.122.7
+
+#    *** T-DC2 ***
+
+# Mirror T-DCT with T-DC1 and transfer roles.
+T-DCT:
+sudo ./samba-provision join 192.168.122.5
+sudo ./samba-transfer-roles T-DC1
+# Demote T-DC1
+sudo ./samba-demote-dc
+sudo poweroff
+# Build and start 'new' T-DC1 image
+virtmgr:
+cp -a T-DC1-bak.qcow2 T-DC1.qcow2
+sudo virsh start T-DC1
+ssh admin@192.168.122.5
+
+# Mirror T-DC1 with T-DCT and transfer roles.
+T-DC1:
+sudo ./samba-provision join 192.168.122.7
+sudo ./samba-transfer-roles T-DCT
+# Demote T-DCT
+T-DCT:
+sudo ./samba-demote-dc
+sudo poweroff
+# Build and start 'new' T-DCT image
+virtmgr:
+cp -a T-DCT-bak.qcow2 T-DCT.qcow2
+sudo virsh start T-DCT
+ssh admin@192.168.122.7
+

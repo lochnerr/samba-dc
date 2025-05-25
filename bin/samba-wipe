@@ -22,7 +22,8 @@ rm -f /etc/samba/smb.conf
 
 sudo find  $dir -type f -print | grep ".db$" |
 while read -r file ; do
-	echo "Removing: $file"
+	echo Removing: "$file"
+	rm "${file}"
 done
 
 rm -f $dir/private/krb5.conf
