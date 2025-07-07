@@ -34,11 +34,11 @@ post_provisioning() {
 		fi
 
 		# Create a reverse pointer record for this server, if none exists.
-		if ! host -t PTR "$HOST_IP" >/dev/null 2>&1 ; then
+		if ! host -t PTR "${HOST_IP}" >/dev/null 2>&1 ; then
 			echo "Info: Adding reverse pointer record for ${node} in ${revzone}.in-addr.arpa type PTR ${HOST}.${DOMAIN}"
-			                echo samba-tool dns add   -U administrator  "$HOST_IP"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
-			echo "${PASSWORD}" | samba-tool dns add   -U administrator  "$HOST_IP"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
-			echo "${PASSWORD}" | samba-tool dns query -U administrator  "$HOST_IP"  "${revzone}.in-addr.arpa"  "${node}"  PTR
+			                echo samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
+			echo "${PASSWORD}" | samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
+			echo "${PASSWORD}" | samba-tool dns query -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR
 		else
 			echo "Info: Reverse pointer for ${HOST_IP} exists."
 		fi
