@@ -11,8 +11,8 @@ wait_for_state() {
 
   # Wait up to 5 minutes for server to reach desired state.
   rc="2"
-  for try in $(seq -s ' ' 1 30) ; do
-    result="$(echo "status" | socat -T3 STDIO UDP4-SENDTO:$HOST:5555 2>/dev/null || true)"
+  for try in $(seq 30); do
+    result="$(echo "status" | socat -T3 STDIO UDP4-SENDTO:"$HOST":5555 2>/dev/null || true)"
     state=""
     [ "$result" = "$expected"  ] && state="$expected"
     [ "$result" = "$expected2" ] && state="$expected2"
@@ -57,6 +57,7 @@ echo "Master has address: $MASTER_IP"
 echo "Slave has address:  $SLAVE_IP"
 
 # Set the global vars.
+# shellcheck source=bin/samba-set-vars
 . samba-set-vars
 set_samba_vars
 
@@ -96,22 +97,23 @@ cat >/etc/krb5.conf <<-__EOF__
 	__EOF__
 
 # Source the test functions.
+# shellcheck source=bin/samba-tests
 . samba-tests
 
 # Test the master.
-wait_for_state $MASTER_IP Running
-run_tests test-master $MASTER_IP
+wait_for_state "$MASTER_IP" Running
+run_tests test-master "$MASTER_IP"
 
 # Test the slave.
-wait_for_state $SLAVE_IP Running
-run_tests test-slave $SLAVE_IP
+wait_for_state "$SLAVE_IP" Running
+run_tests test-slave "$SLAVE_IP"
 
 # Show the test statistics.
 test_stats
 
 # Signal shutdown for master and slave.
-result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:$MASTER_IP:5555 2>/dev/null || true)"
-result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:$SLAVE_IP:5555  2>/dev/null || true)"
+result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:"$MASTER_IP":5555 2>/dev/null || true)"
+result="$(echo "shutdown" | socat -T2 STDIO UDP4-SENDTO:"$SLAVE_IP":5555  2>/dev/null || true)"
 
 # Give services some time to finish shutting down.
 sleep 5s
