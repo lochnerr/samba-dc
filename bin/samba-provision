@@ -5,13 +5,55 @@
 # From: https://www.server-world.info/en/note?os=Fedora_41&p=samba&f=5
 # Also: https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller
 
-# TODO For now this appears to be clean for fedora and ubuntu.
-#      That was *with* already pre-set static addresses on ubuntu (which would be the normal way).
-#      But, the dns setting must be valid so that the package installs on first boot will work.
-
 set -e
 
+# This is only used in testing.
+wait_for_file() {
+
+	echo "Info: Waiting for signal file ${1}."
+	# shellcheck disable=SC2034
+	for try in $(seq 90) ; do
+		[ -e "${1}" ] && break
+		sleep 10s
+	done
+}
+
 post_provisioning() {
+
+	# TODO Get rid of global variables: HOST, HOST_IP and PASSWORD in here.
+
+	if [ "${mode}" = "join" ]; then
+		# In order for dynamic dns updates to work after joining a domain, the domain controllers
+		# must be fully synchronized. This will happen normally over time, but forcing it here
+		# allows the dynamic update tests to complete successfully.
+
+		echo "Info: Manually replicating directory partitions."
+		context=""
+		sep=""
+		for level in $(echo "${domain}" | tr '.' '\n') ; do
+			context="${context}${sep}DC=${level}"
+			sep=","
+		done
+
+		# Parameters that worked:     source          dest                  <naming context>
+		#                             --------------- --------------------- -------------------------
+		#    samba-tool drs replicate T-DC2           T-DCT                 dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.6   T-DCT                 dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.6   t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
+		#    samba-tool drs replicate 192.168.122.176 t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
+		echo samba-tool drs replicate "${2}" "${HOST}" "${context}"
+		if ! samba-tool drs replicate "${2}" "${HOST}" "${context}" ; then
+			echo "Replication failed, continuing anyway!"
+		else
+			echo "Replication succeeded!"
+		fi
+
+		# Show replication status.  The doesn't work without the delay for some reason.
+		sleep 2s
+		if ! samba-tool drs showrepl ; then
+			echo "Warning: Show replication failed, continuing anyway!"
+		fi
+	fi
 
 	# Create a reverse zone for this server, if needed.
 	subnet="$(ip addr | grep "${HOST_IP}" | cut -d '/' -f2 | cut -d ' ' -f1)"
@@ -28,16 +70,16 @@ post_provisioning() {
 		[ "${subnet}" = "8" ]  && node="$(echo "${HOST_IP}" | awk -F '.' '{print $4 "." $3 "." $2}')"
 		if ! host -t SOA "${revzone}.in-addr.arpa" 2>/dev/null | grep -q 'has SOA' ; then
 			echo "Info: Adding reverse dns zone ${revzone}.in-addr.arpa."
-			samba-tool dns zonecreate "${HOST}.${DOMAIN}" "${revzone}.in-addr.arpa" -P 2>&1
+			samba-tool dns zonecreate "${HOST}.${domain}" "${revzone}.in-addr.arpa" -P 2>&1
 		else
 			echo "Info: Reverse zone ${revzone}.in-addr.arpa exists."
 		fi
 
 		# Create a reverse pointer record for this server, if none exists.
 		if ! host -t PTR "${HOST_IP}" >/dev/null 2>&1 ; then
-			echo "Info: Adding reverse pointer record for ${node} in ${revzone}.in-addr.arpa type PTR ${HOST}.${DOMAIN}"
-			                echo samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
-			echo "${PASSWORD}" | samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${DOMAIN}"
+			echo "Info: Adding reverse pointer record for ${node} in ${revzone}.in-addr.arpa type PTR ${HOST}.${domain}"
+			                echo samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${domain}"
+			echo "${PASSWORD}" | samba-tool dns add   -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR  "${HOST}.${domain}"
 			echo "${PASSWORD}" | samba-tool dns query -U administrator  "${HOST_IP}"  "${revzone}.in-addr.arpa"  "${node}"  PTR
 		else
 			echo "Info: Reverse pointer for ${HOST_IP} exists."
@@ -74,69 +116,40 @@ post_provisioning() {
 		# Set the the dhcp users password to never expire and add it to the DnsAdmins group.
 		samba-tool user setexpiry dhcpduser --noexpiry
 		samba-tool group addmembers DnsAdmins dhcpduser
-	else
-
-		# In order for dynamic dns updates to work after joining a slave, the master and slaves
-		# must be fully synchronized. This will happen normally over time, but forcing it here
-		# allows the dynamic update tests to complete successfully.
-
-		echo "Info: Manually replicating directory partitions."
-		part=""
-		sep=""
-		for p in $(echo "${DOMAIN}" | tr '.' '\n') ; do
-			part="${part}${sep}DC=${p}"
-			sep=","
-		done
-
-		# Parameters that worked:     source          dest                  <naming context>
-		#                             --------------- --------------------- -------------------------
-		#    samba-tool drs replicate T-DC2           T-DCT                 dc=corp,dc=clone1,dc=com
-		#    samba-tool drs replicate 192.168.122.6   T-DCT                 dc=corp,dc=clone1,dc=com
-		#    samba-tool drs replicate 192.168.122.6   t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
-		#    samba-tool drs replicate 192.168.122.176 t-dc1.corp.clone1.com dc=corp,dc=clone1,dc=com
-		echo samba-tool drs replicate "${PARTNER_IP}" "${HOST}" "${part}"
-		if ! samba-tool drs replicate "${PARTNER_IP}" "${HOST}" "${part}" ; then
-			echo "Replication failed, continuing anyway!"
-		else
-			echo "Replication succeeded!"
-		fi
-
-		# Show replication status
-		if ! samba-tool drs showrepl ; then
-			echo "Warning: Show replication failed, continuing anyway!"
-		fi
 	fi
 }
 
-# Changes that need to be made:
+# Set the local and global variables.
 
-# Get the REALM from the hostname.
-FQDN="$(hostnamectl hostname)"
+# If the fully qualified domain name has not been set, use the system hostname.
+[ -z "${FQDN}" ] && FQDN="$(cat /proc/sys/kernel/hostname)"
+# Get the host, realm and domain from the FQDN.
 HOST="$(echo "${FQDN}" | cut -d . -f 1)"
-[ -z "${REALM}" ]     && REALM="$(echo "${FQDN#*.}" | tr '[:lower:]' '[:upper:]')"
-DOMAIN="$(echo "${REALM}" | tr '[:upper:]' '[:lower:]')"
-[ -z "${WORKGROUP}" ] && WORKGROUP="$(echo "${REALM}" | cut -d . -f 1)"
-
-# Pick an interface that is not the loopback.
-INTERFACE="$(ip a | grep '^[0-9][0-9]*:' | grep -v ' lo:' | awk '{print $2}' | cut -d : -f1 | head -1)"
+realm="$(echo "${FQDN#*.}" | tr '[:lower:]' '[:upper:]')"
+domain="$(echo "${realm}" | tr '[:upper:]' '[:lower:]')"
+[ -z "${WORKGROUP}" ] && WORKGROUP="$(echo "${realm}" | cut -d . -f 1)"
+# If the interface has not been set, pick the first interface that is not the loopback.
+[ -z "${INTERFACE}" ] && INTERFACE="$(ip a | grep '^[0-9][0-9]*:' | grep -v ' lo:' | awk '{print $2}' | cut -d : -f1 | head -1 | cut -d @ -f1)"
 # Get the IPv4 address for the interface.
 HOST_IP="$(ip a show "${INTERFACE}" | grep 'inet ' | awk '{print $2}' | cut -d / -f1)"
+# Set the password and mode.
+[ -z "${PASSWORD}" ] && [ -e ./password.txt ] && PASSWORD="$(head -1 ./password.txt)"
+[ -z "${PASSWORD}" ] && PASSWORD="Passw0rd"
+mode="${1}"
 
 [ -z "${1}" ] && err="true"
 [ "${1}" = "join" ] && [ -z "${2}" ] && err="true"
 
-PARTNER_IP="${2}"
-
 if [ -n "${err}" ]; then
 	cat <<-__EOD__
-	Format: $(basename "${0}") provision | join <partner_ip> [<partner_fully_qualified_domain_name>]
+	Format: $(basename "${0}") provision | join <primary_host>
 
 	The host is:         ${HOST}
-	The domain is:       ${DOMAIN}
-	The realm is:        ${REALM}
+	The domain is:       ${domain}
+	The realm is:        ${realm}
 	The workgroup is:    ${WORKGROUP}
 	The interface is:    ${INTERFACE}
-	THe IPv4 address is: ${HOST_IP}
+	The IPv4 address is: ${HOST_IP}
 
 	Note: The default password is Passw0rd.  If a file named password.txt
 	      is found, the first line will be used as the password.
@@ -150,34 +163,47 @@ if [ 0 != "$(id -u)" ]; then
 	exit 1
 fi
 
-# Install Samba DC package.
+# Ensure the hostname is valid.
 
-if [ -e /usr/bin/apt-get ] ; then
-	apt-get update
-	apt-get -y install samba-ad-dc krb5-user
-else
-	dnf -y install samba samba-dc
+if [ "${HOST}" = "${FQDN}" ]; then
+	echo "Error: The short hostname must not equal the fully qualified hostname."
+	exit 1
+fi
+
+# Verify that samba is installed.
+
+if ! command -v samba-tool >/dev/null 2>&1 ; then
+	echo "Error: Samba is not installed."
+	exit 1
 fi
 
 # Ensure that samba has not already been provisioned.
 
-PRIVATE_DIR="$(smbd -b | grep -i PRIVATE_DIR | awk '{print $2}')"
-if [ -e "${PRIVATE_DIR}/krb5.conf" ]; then
+private_dir="$(smbd -b | grep -i PRIVATE_DIR | awk '{print $2}')"
+if [ -e "${private_dir}/krb5.conf" ]; then
 	echo "Error: Samba has already been configured on this server."
 	exit 1
 fi
 
-# Set the password and mode.
+# If this is the backup controller, wait for start signal, then configure the resolver.
 
-[ -z "${PASSWORD}" ] && [ -e ./password.txt ] && PASSWORD="$(head -1 ./password.txt)"
-[ -z "${PASSWORD}" ] && PASSWORD="Passw0rd"
-
-mode="${1}"
+if [ "${FQDN}" = "backup.test.example.com" ]; then
+	# Make sure the test container has time to erase any previous start file.
+	sleep 3s
+	wait_for_file "/sut/${HOST}.start"
+	# Get the primary controller's IP value from the start file.
+	primary="$(cat "/sut/${HOST}.start" || :)"
+	rm -f "/sut/${HOST}.start"
+	echo "Info: Primary Domain Controller IP is ${primary}"
+	# Set the dns name server to the primary.
+	echo "search ${domain}"       >/etc/resolv.conf
+	echo "nameserver ${primary}" >>/etc/resolv.conf
+fi
 
 # If the systemd-resolved service is running, disable the stub listener.
 # See: https://askubuntu.com/questions/1104863/samba-internal-dns-systemd-resolve-safe-to-disable
 
-if systemctl -q is-active systemd-resolved ; then
+if systemctl is-active systemd-resolved >/dev/null 2>&1 ; then
 	if ! grep -q "DNSStubListener.*=.*no$" /etc/systemd/resolved.conf 2>/dev/null ; then
 		echo "Info: Adding DNSStubListener=no to: /etc/systemd/resolved.conf."
 		# Add a [resolve] section to the config file if it does not exist.
@@ -190,15 +216,15 @@ if systemctl -q is-active systemd-resolved ; then
 	
 	if [ "${mode}" = "join" ]; then
 		echo "Info: Adding temporary DNS record to systemd-resolved configuration."
-		echo resolvectl dns "${INTERFACE}" "${PARTNER_IP}"
-		resolvectl dns "${INTERFACE}" "${PARTNER_IP}"
+		echo resolvectl dns "${INTERFACE}" "${2}"
+		resolvectl dns "${INTERFACE}" "${2}"
 	fi
 fi
 
 # If joining, make sure that the server can be contacted.
 if [ "${mode}" = "join" ]; then
-	if ! host "${DOMAIN}" >/dev/null 2>&1 ; then
-		echo "Error: Unable to query the current DNS server for ${DOMAIN} records."
+	if ! host "${domain}" >/dev/null 2>&1 ; then
+		echo "Error: Unable to query the current DNS server for ${domain} records."
 		echo
 		echo "Are the DNS settings correct?"
 		exit 1
@@ -222,20 +248,21 @@ fi
 
 case ${mode} in
 provision)
-	echo "Info: Provisioning ${REALM}"
+	echo "Info: Provisioning ${realm} with Samba $(samba -V)"
 	echo
+
 	samba-tool domain provision \
-	  --realm="${REALM}" \
+	  --realm="${realm}" \
 	  --domain="${WORKGROUP}" \
 	  --server-role=dc \
 	  --dns-backend=SAMBA_INTERNAL \
 	  --adminpass="${PASSWORD}"
 	;;
 join)
-	echo "Info: Joining ${REALM}"
+	echo "Info: Joining ${realm} with Samba $(samba -V)"
 	echo
 
-	samba-tool domain join "${REALM}" DC \
+	samba-tool domain join "${realm}" DC \
 	  --dns-backend=SAMBA_INTERNAL \
 	  -UAdministrator --password="${PASSWORD}"
 	;;
@@ -245,44 +272,72 @@ join)
 	;;
 esac
 
-echo "Info: Copying the kerberos configuration generated by Samba."
-[ -e /etc/krb5.conf ] && mv /etc/krb5.conf /etc/krb5.conf.orig
-cp -f "${PRIVATE_DIR}/krb5.conf" /etc/
+# Save the generated config file.
+cp /etc/samba/smb.conf /etc/samba/smb.conf.generated
 
-# Ensure forwarder in config.
+# Enable TLS.  TODO The samba default tls keys are only good for two years!
+tls="t tls enabled  = yes"
+tls="${tls}\nt tls keyfile  = tls/key.pem"
+tls="${tls}\nt tls certfile = tls/cert.pem"
+tls="${tls}\nt tls cafile   = tls/ca.pem"
+tls="${tls}\nt tls priority = NORMAL:-VERS-TLS1.0:-VERS-TLS1.1:-VERS-TLS1.2"
+sed "/workgroup = /a ${tls}" /etc/samba/smb.conf \
+  | sed  's/^t /        /g' >/tmp/smb.conf
+mv -f /tmp/smb.conf /etc/samba/smb.conf
+
+# Ensure forwarder in config.  This is not done automatically on a join.
 
 if ! grep -q "dns forwarder" /etc/samba/smb.conf ; then
 	echo "Info: Adding dns forwarder option to smb.conf."
 	dns="$(ip r | grep ^default | awk '{ print $3 }')"
-	sed -i '/dns forwarder/d'                       /etc/samba/smb.conf
 	sed -i "/\[global\]/a dns forwarder = ${dns}"   /etc/samba/smb.conf
 	sed -i 's/^dns forwarder/	dns forwarder/' /etc/samba/smb.conf
 fi
 
+echo "Info: Copying the kerberos configuration generated by Samba."
+[ -e /etc/krb5.conf ] && mv /etc/krb5.conf /etc/krb5.conf.orig
+cp -f "${private_dir}/krb5.conf" /etc/
+
 echo "Info: Setting dns to self and dns search to this domain."
 if command -v nmcli >/dev/null 2>&1 ; then
+	echo "Info: Updating nameserver with nmcli."
 	conn="$(nmcli -t -f NAME c show --active | grep -v '^lo' | head -1)"
 	nmcli con mod "${conn}" ipv4.dns        "${HOST_IP}"
-	nmcli con mod "${conn}" ipv4.dns-search "${DOMAIN}"
+	nmcli con mod "${conn}" ipv4.dns-search "${domain}"
 	nmcli con mod "${conn}" ipv4.ignore-auto-dns yes
 	nmcli con up  "${conn}"
 else
-	resolvectl dns     "${INTERFACE}" "${HOST_IP}"
-	resolvectl domain  "${INTERFACE}" "${DOMAIN}"
+	if systemctl is-active systemd-resolved >/dev/null 2>&1 ; then
+		echo "Info: Updating nameserver with resolvectl."
+		resolvectl dns     "${INTERFACE}" "${HOST_IP}"
+		resolvectl domain  "${INTERFACE}" "${domain}"
+	else
+		echo "Info: Updating nameserver in /etc/resolv.conf."
+		echo "search ${domain}"      >/etc/resolv.conf
+		echo "namesever ${HOST_IP}" >>/etc/resolv.conf
+	fi
 fi
 
-echo "Info: Enabling Samba."
-samba="samba"
-[ -e /usr/bin/apt-get ] && samba="samba-ad-dc"
-systemctl enable ${samba}
+samba_service="samba"
+[ -e /usr/bin/apt-get ] && samba_service="samba-ad-dc"
+if systemctl is-active systemd-journald >/dev/null 2>&1 ; then
+	if [ ! -e /usr/bin/apt-get ]; then
+		echo "Info: Enabling Samba."
+		systemctl enable ${samba_service}
+	else
+		echo "Info: Samba should already be enabled for Debian-like distros."
+	fi
+fi
 
 # If Firewalld is running, allow related ports.
 
 echo
-if systemctl is-active -q firewalld ; then
+if systemctl is-active firewalld >/dev/null 2>&1 ; then
 	echo "Info: Adding services {dns,kerberos,kpasswd,ldap,ldaps,samba} to firewall."
+	# shellcheck disable=SC3009
 	firewall-cmd --add-service={dns,kerberos,kpasswd,ldap,ldaps,samba}
 	echo "Info: Adding ports {135/tcp,137-138/udp,139/tcp,3268-3269/tcp,49152-65535/tcp} to firewall."
+	# shellcheck disable=SC3009
 	firewall-cmd --add-port={135/tcp,137-138/udp,139/tcp,3268-3269/tcp,49152-65535/tcp}
 	echo "Info: Making firewall changes permanent."
 	firewall-cmd --runtime-to-permanent
@@ -293,9 +348,14 @@ fi
 echo
 samba-tool domain level show
 
-systemctl start ${samba}
+if ! systemctl is-active systemd-journald >/dev/null 2>&1 ; then
+	# Not running under systemd so just start samba!
+	samba
+else
+	systemctl start ${samba_service}
+fi
 
-post_provisioning
+post_provisioning "${mode}" "${primary}"
 
 if samba-tool dbcheck --cross-ncs ; then
 	echo "Info: Samba dbcheck completed successfully!"
@@ -303,22 +363,12 @@ else
 	echo "Warning: Samba dbcheck failed!"
 fi
 
-cat <<-__EOD__
-
-Things to check now that the ${mode} is complete:
-
-Verify the stub listener is disabled.
-Verify there is a forwarder in the config.
-Check the search and dns.
-Verify the dns address and search.
-
-grep -v "^#" /etc/systemd/resolved.conf
-grep forwarder /etc/samba/smb.conf
-resolvectl
-nmcli conn show "cloud-init enp1s0" | grep dns
-host "\$(hostname -s)"
-host "\$(host \$(hostname -s) | awk '{print \$4}')"
-__EOD__
+# If this is a test run, set the status to running and wait for the shutdown signal.
+if [ -d /sut ]; then
+	echo >"/sut/${HOST}.running"
+	wait_for_file "/sut/${HOST}.shutdown"
+	systemctl is-active systemd-journald >/dev/null 2>&1 && kill -s "RTMIN+3" 1
+fi
 
 echo "Done!"
 

@@ -2,36 +2,30 @@ version: "2"
 
 # Samba Active Directory Domain Controller automated test compose file.
 
-# When provisioning master and slave domain controllers, privileged is required.
-# On the slave it is needed to mount the master's sysvol.
+# When provisioning a first (primary) domain controller, privileged is required.
 
 services:
 
-  test-master:
+  primary:
     image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
-    #command: /usr/local/bin/samba-run
+    command: run-service samba-provision provision
     privileged: true
     restart: "no"
-    hostname: test-master.ad.example.com
+    hostname: primary.test.example.com
     volumes:
-      - test-master:/var/lib/samba
-    networks:
-      front:
-        ipv4_address: 172.16.238.2
-        ipv6_address: fdb1:ac90:835d:72c::2
+      test-samba:/sut
+    environment:
+      INIT: $INIT
 
-  test-slave:
+  backup:
     image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
-    #command: /usr/local/bin/samba-run
-    privileged: true
+    command: run-service samba-provision join primary.test.example.com
     restart: "no"
-    hostname: test-slave.ad.example.com
+    hostname: backup.test.example.com
     volumes:
-      - test-slave:/var/lib/samba
-    networks:
-      front:
-        ipv4_address: 172.16.238.3
-        ipv6_address: fdb1:ac90:835d:72c::3
+      - test-samba:/sut
+    environment:
+      INIT: $INIT
 
   sut:
     build:
@@ -41,27 +35,10 @@ services:
     image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
     command: /usr/local/bin/samba-tests-sut
     restart: "no"
-    hostname: sut.ad.example.com
+    hostname: sut.test.example.com
     volumes:
-      - test-master:/var/lib/samba
-    networks:
-      front:
-        ipv4_address: 172.16.238.4
-        ipv6_address: fdb1:ac90:835d:72c::4
+      - test-samba:/sut
 
 volumes:
-  test-master:
-  test-slave:
-
-networks:
-  front:
-    driver: bridge
-    enable_ipv6: true
-    ipam:
-      driver: default
-      config:
-        - subnet:  172.16.238.0/24
-          gateway: 172.16.238.1
-        - subnet:  fdb1:ac90:835d:72c::/64
-          gateway: fdb1:ac90:835d:72c::1
+  test-samba:
 

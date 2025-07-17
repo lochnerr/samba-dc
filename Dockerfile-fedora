@@ -19,7 +19,6 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # bind-utils - host & nsupdate (used in provisioning and automated tests)
 # iproute - ip (used in provisioning and automated tests)
 # tdb-tools - tdbbackup (used to create backup of idmap)
-# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # procps-ng - ps (Needed to determine if running under systemd, from systemd image)
 # hostname - hostname (used in samba-set-vars)
 # gawk - awk (previously included prior to fedora 42)
@@ -44,7 +43,6 @@ RUN dnf -y install --nodocs \
         bind-utils \
         iproute \
         tdb-tools \
-        cifs-utils \
         hostname \
         gawk \
         socat \
@@ -69,13 +67,6 @@ CMD [ "/sbin/init" ]
 
 # Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
-
-# Copy the systemd samba service.
-COPY samba-ad-dc.service /usr/lib/systemd/system/
-
-# Do one-time samba configuration.
-RUN . /usr/local/bin/samba-configure \
- && samba_configure container
 
 # Set systemd stop signal.
 STOPSIGNAL SIGRTMIN+3

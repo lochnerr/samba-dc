@@ -24,7 +24,6 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # dnsutils - nsupdate (used in automated tests)
 # iproute2 - ip (used in provisioning and automated tests)
 # tdb-tools - tdbbackup (used to create backup of idmap)
-# cifs-utils - mount.cifs (Required when provisioning a slave domain controller to access idmap backup on master)
 # socat - socat (used for automated tests)
 # systemd-container - systemd for containers (from systemd image).
 
@@ -52,7 +51,6 @@ RUN apt-get -y update \
         dnsutils \
         iproute2 \
         tdb-tools \
-        cifs-utils \
         socat \
         wget \
         iputils-ping \
@@ -71,12 +69,13 @@ CMD [ "/lib/systemd/systemd" ]
 # Copy the script files and other artifacts.
 COPY bin/. /usr/local/bin/
 
-# Copy the systemd samba service.
-COPY samba-ad-dc.service /etc/systemd/system/samba-runner.service
-
 # Do one-time samba configuration.
-RUN . /usr/local/bin/samba-configure \
- && samba_configure container
+RUN \
+  # Debian-like distros enable both samba and named on startup.
+  # Rename their config files to prevent them from automatically running.
+  # Container mounts can be used to enable them as needed.
+  mv -f /etc/samba/smb.conf   /etc/samba/smb.conf.orig && \
+  mv -f /etc/bind/named.conf  /etc/bind/named.conf.orig
 
 # Set systemd stop signal.
 STOPSIGNAL SIGRTMIN+3

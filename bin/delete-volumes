@@ -1,4 +1,0 @@
-# Delete test volumes before running tests.
-podman volume rm samba-dc_test-master || :
-podman volume rm samba-dc_test-slave || :
-
