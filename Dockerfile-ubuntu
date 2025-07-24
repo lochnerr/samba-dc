@@ -19,6 +19,8 @@ LABEL MAINTAINER Richard Lochner, Clone Research Corp. <lochner@clone1.com> \
 # krb5-config - required by samba.
 # krb5-user - required by samba.
 # libpam-krb5 - required by samba.
+# openssh-server - required to test dhcp-dyndns.sh updates over ssh.
+# openssh-client - required to test dhcp-dyndns.sh updates over ssh.
 # bind9 - named (required to use the BIND9_DLZ backend)
 # bind9utils - host (used in provisioning and automated tests)
 # dnsutils - nsupdate (used in automated tests)
@@ -46,6 +48,8 @@ RUN apt-get -y update \
         krb5-config \
         krb5-user \
         libpam-krb5 \
+        openssh-server \
+        openssh-client \
         bind9 \
         bind9utils \
         dnsutils \
