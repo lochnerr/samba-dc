@@ -1,0 +1,44 @@
+#!/bin/sh
+
+# selinux-fix-chronyd-socket-access: Fix SELinux errors preventing chronyd from communicating with the samba ntp signing socket (/var/lib/samba/ntp_signd/socket).
+
+if [ "$(id -u)" != "0" ]; then
+	echo "Must be root!"
+	exit 1
+fi
+
+if ! command -v audit2allow >/dev/null 2>&1 ; then
+	echo "Error: The audit2allow command is not available."
+	echo
+	echo "Is the policycoreutils-devel package installed?"
+	echo
+	exit 1
+fi
+
+echo
+echo "Info: Searching the journal can take a long time, please be patient."
+
+# Select the appropriate denial messages.
+if ! journalctl | grep denied | grep chronyd >chronyd-samba-denials.txt ; then
+	echo "Info: No denials found, exiting!"
+	exit 1
+fi
+
+# Run audit2allow to create an SELinux policy package and type enforcement file.
+audit2allow -i chronyd-samba-denials.txt -M chronyd-samba >/dev/null
+
+# Apply the policy, if it has not previously been applied.
+if grep "!!!!.*is allowed" chronyd-samba.te >/dev/null 2>&1 ; then
+	echo
+	echo "Info: It appears that this fix has already been applied."
+	echo
+	echo "To run it manually, run the following as root:"
+	echo
+	echo "semodule -i chronyd-samba.pp"
+	echo
+	exit 0
+else
+	semodule -i chronyd-samba.pp
+fi
+
+echo "Done!"
