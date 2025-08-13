@@ -10,6 +10,21 @@ wait_for_file() {
 	done
 }
 
+lookup_test() {
+
+	test="Lookup $1 record for $2"
+	[ "$3" = "fail" ] && test="Delete of $1 record for $2"
+	if host -t "$1" "$2" >/dev/null 2>&1 ; then
+		[ "$3" = "pass" ] && log_pass "$test"
+		[ "$3" = "fail" ] && log_fail "$test"
+		rc="0"
+	else
+		[ "$3" = "pass" ] && log_fail "$test"
+		[ "$3" = "fail" ] && log_pass "$test"
+		rc="1"
+	fi
+}
+
 run_tests() {
 
   HOST_NAME="$1"
@@ -24,6 +39,42 @@ run_tests() {
 	__EOF__
 
   test_samba
+
+  mkdir -p ~/.ssh
+  cat >~/.ssh/id_ed25519 <<-__EOD__
+	-----BEGIN OPENSSH PRIVATE KEY-----
+	b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+	QyNTUxOQAAACAtgZCKgE422RwUG1BsA3alyNyWgJP2XDje25Kdl0K0ZwAAAJiZ2Ktdmdir
+	XQAAAAtzc2gtZWQyNTUxOQAAACAtgZCKgE422RwUG1BsA3alyNyWgJP2XDje25Kdl0K0Zw
+	AAAEBHe9Ja34lhnan1fbEoYuPqZ8qpx9iY3t85dFVzKmNrvi2BkIqATjbZHBQbUGwDdqXI
+	3JaAk/ZcON7bkp2XQrRnAAAAE2R5bmFtaWNAZG5zLnVwZGF0ZXMBAg==
+	-----END OPENSSH PRIVATE KEY-----
+	__EOD__
+  chmod 400 ~/.ssh/id_ed25519
+
+  # Generate a dummy address in this network segment to add to dns.
+  ip="$(echo "${HOST_IP}" | cut -d. -f1-3).250"
+  ptr="$(echo "${ip}" | awk -F '.' '{print $4 "." $3 "." $2 "." $1 ".in-addr.arpa"}')"
+
+  # Test the dhcp-dyndns.sh add functionality.
+  echo ssh -o StrictHostKeyChecking=no root@"${HOST_IP}" samba-dyndns-wrapper "add" "$ip" "nil" "nstest"
+  ssh -o StrictHostKeyChecking=no root@"${HOST_IP}" samba-dyndns-wrapper "add" "$ip" "nil" "nstest" || rc="$?"
+  [ "${rc:-0}" != "0" ] && echo "ssh rc is $rc"
+  lookup_test A   "$ip"   pass
+  test_a="$rc"
+  lookup_test PTR "$ptr"  pass
+  test_ptr="$rc"
+
+  # Test the dhcp-dyndns.sh delete functionality.
+  echo ssh -o StrictHostKeyChecking=no root@"${HOST_IP}" samba-dyndns-wrapper "delete" "$ip" "nil"
+  ssh -o StrictHostKeyChecking=no root@"${HOST_IP}" samba-dyndns-wrapper "delete" "$ip" "nil" || rc="$?"
+  [ "${rc:-0}" != "0" ] && echo "ssh rc is $rc"
+  if [ "$test_a"   = "0" ]; then
+	lookup_test A   "$ip"   fail
+  fi
+  if [ "$test_ptr" = "0" ]; then
+	lookup_test PTR "$ptr"  fail
+  fi
 }
 
 echo "Starting system unit tests!"
