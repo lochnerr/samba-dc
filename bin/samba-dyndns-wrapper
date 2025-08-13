@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Helper script to run the dhcp-dyndns.sh script with arguments in a restricted secure shell.
+# See: https://wiki.samba.org/index.php/Configure_DHCP_to_update_DNS_records
+
+# Note: This will run as non-root if the /etc/dhcpduser.keytab has proper ownership.
+
+if [ -n "$1" ]; then
+	# There is an argument to this script so it cannot be running in a 
+	# restricted shell, so just use the arguments as is.
+	ARGS="$1 $2 $3 $4"
+else
+	# Strip off the shell command argument from the original command.
+	ARGS="$(echo "$SSH_ORIGINAL_COMMAND" | cut -d ' ' -f2-)"
+fi
+
+echo "dhcp-dyndns.sh $ARGS"
+# shellcheck disable=SC2086
+/usr/local/bin/dhcp-dyndns.sh $ARGS
+
+exit 0
