@@ -20,6 +20,8 @@ services:
   backup:
     image: lochnerr/samba-dc:${DISTRO:-fedora}-${RELEASE:-latest}
     command: run-service samba-provision join primary.test.example.com
+    # Needed to accept ssh sessions for testing the samba-dyndns-wrapper script.
+    privileged: true
     restart: "no"
     hostname: backup.test.example.com
     volumes:
